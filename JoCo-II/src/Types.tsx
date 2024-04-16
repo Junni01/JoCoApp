@@ -22,7 +22,7 @@ export enum RegionStatus {
   CompanyControlled = "Company Controlled",
 }
 
-export enum Symbol {
+export enum RegionSymbol {
   Square = "Square",
   Circle = "Circle",
   Triangle = "Triangle",
@@ -30,11 +30,12 @@ export enum Symbol {
 
 export type Neighbor = {
   regionId: RegionName;
-  symbol: Symbol[];
+  symbol: RegionSymbol[];
 };
 
 export type Region = {
   id: RegionName;
+  index: number;
   status: RegionStatus;
   neighbors: Neighbor[];
   towerLevel: number;
@@ -70,7 +71,20 @@ export type EventCard = {
   id: string;
   type: EventType;
   strength: number;
-  symbol: Symbol;
+  symbol: RegionSymbol;
   Region: RegionName;
   Description: string;
+};
+
+export enum SeaZone {
+  WestSea = "West Sea",
+  SouthSea = "South Sea",
+  EastSea = "East Sea",
+  None = "None",
+  All = "All",
+}
+
+export type StormDieFace = {
+  Sea: SeaZone;
+  EventNumber: Number;
 };
