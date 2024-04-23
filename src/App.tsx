@@ -4,11 +4,11 @@ import {
   Card,
   CardActions,
   CardContent,
-  CardHeader,
   Container,
   Typography,
 } from "@mui/material";
 import {
+  DeployType,
   Elephant,
   EventCard,
   EventType,
@@ -18,10 +18,11 @@ import {
   Scenario,
 } from "./Types";
 import { EventDeck, getElephantInitialPosition, getRegionData } from "./Data";
-import { useEffect, useMemo, useState } from "react";
-import { DeployDialog, DeployType } from "./DeployDialog";
+import { useMemo, useState } from "react";
+import { DeployDialog } from "./DeployDialog";
 import { ModifyRegionDialog } from "./ModifyRegionDialog";
 import { EventDialog } from "./EventDialog";
+import { doesEmpireShatter } from "./Helpers";
 
 function App() {
   const scenario = Scenario.SeventeenTen;
@@ -36,9 +37,7 @@ function App() {
   const [showDeployDialog, setShowDeployDialog] = useState<boolean>(false);
   const [showModifyRegionDialog, setShowModifyRegionDialog] =
     useState<boolean>(false);
-  const [activeRegion, setActiveRegion] = useState<Region | undefined>(
-    undefined
-  );
+  const [activeRegion, setActiveRegion] = useState<Region>();
   const [activeEvent, setActiveEvent] = useState<EventCard | undefined>();
 
   const shuffleEventPile = (pile: EventCard[]) => {
@@ -154,14 +153,31 @@ function App() {
       );
       return;
     }
-    const newRegionArray = regions.filter((r) => r.id !== activeRegion.id);
+
+    const dominator = regions.find((r) => r.id === activeRegion.dominator);
+
+    if (!dominator) {
+      console.error(
+        "handleSuccessfulDeployToDominatedRegion: Dominator is undefined!"
+      );
+      return;
+    }
+
+    if (doesEmpireShatter(activeRegion, regions)) {
+      dominator.status = RegionStatus.Sovereign;
+    }
+
+    const newRegionArray = regions.filter(
+      (r) => r.id !== activeRegion.id && r.id !== dominator?.id
+    );
     activeRegion.unrest = 0;
     activeRegion.lootAvailable = false;
     activeRegion.status = RegionStatus.CompanyControlled;
     activeRegion.towerLevel = 0;
     activeRegion.dominator = undefined;
     activeRegion.controllingPresidency = deployingPresidency;
-    setRegions([...newRegionArray, activeRegion]);
+
+    setRegions([...newRegionArray, activeRegion, dominator]);
   };
 
   const handleSuccessfulDeployToSovereignRegion = (
@@ -191,7 +207,7 @@ function App() {
       );
       return;
     }
-    let dominatedRegions = regions.filter(
+    const dominatedRegions = regions.filter(
       (r) => r.dominator === activeRegion.id
     );
 
@@ -207,7 +223,7 @@ function App() {
 
     const modifiedDominatedRegions: Region[] = [];
 
-    for (let region of dominatedRegions) {
+    for (const region of dominatedRegions) {
       region.dominator = undefined;
       region.status = RegionStatus.Sovereign;
       modifiedDominatedRegions.push(region);

@@ -10,18 +10,19 @@ import { Region, RegionStatus } from "./Types";
 import { useState } from "react";
 
 type ModifyRegionDialogProps = {
-  region: Region | undefined;
+  region?: Region;
   onSave: (region: Region) => void;
   onCancel: () => void;
 };
 
 export const ModifyRegionDialog = (props: ModifyRegionDialogProps) => {
-  if (!props.region) {
-    console.error("Modified region is undefined");
-    return;
-  }
+  const [modifiedRegion, setModifiedRegion] = useState<Region | undefined>(
+    props.region
+  );
 
-  const [modifiedRegion, setModifiedRegion] = useState<Region>(props.region);
+  if (!modifiedRegion) {
+    return null;
+  }
 
   const handleUnrestChange = (value: number) => {
     if (modifiedRegion.unrest === 0 && value < 0) {
@@ -45,7 +46,7 @@ export const ModifyRegionDialog = (props: ModifyRegionDialogProps) => {
 
   return (
     <Dialog open={true}>
-      <DialogTitle>Modify {props.region.id}</DialogTitle>
+      <DialogTitle>Modify {props.region?.id}</DialogTitle>
       <DialogContent>
         <Typography>
           {isUnrestModifierAvailable()

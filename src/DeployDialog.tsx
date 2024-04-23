@@ -11,9 +11,16 @@ import {
   RadioGroup,
   Typography,
 } from "@mui/material";
-import { Elephant, Presidency, Region, RegionStatus } from "./Types";
+import {
+  DeployType,
+  Elephant,
+  Presidency,
+  Region,
+  RegionStatus,
+} from "./Types";
 import {
   calculateEmpireStrength,
+  doesEmpireShatter,
   getEmpireDominatedRegionIds,
 } from "./Helpers";
 import { useState } from "react";
@@ -30,14 +37,6 @@ type DeployDialogProps = {
   onCancel: () => void;
   elephant: Elephant;
 };
-
-export enum DeployType {
-  CompanyControlledWithUnrest,
-  CompanyControlledWithoutUnrest,
-  Sovereign,
-  Dominated,
-  EmpireCapital,
-}
 
 export const DeployDialog = (props: DeployDialogProps) => {
   const [showResults, setShowResults] = useState<boolean>(false);
@@ -125,7 +124,7 @@ export const DeployDialog = (props: DeployDialogProps) => {
                 {props.elephant.MainRegion === props.targetRegion.id &&
                   !!props.elephant.TargetRegion && (
                     <Typography>
-                      Elephan Redirect: Place elephant in the middle of{" "}
+                      Elephant Redirect: Place elephant in the middle of{" "}
                       {props.targetRegion.id}
                     </Typography>
                   )}
@@ -222,6 +221,11 @@ const DeployDialogContent = (props: {
   regions: Region[];
   isDeployAllowed: boolean;
 }) => {
+  const totalStrength = calculateEmpireStrength(
+    props.targetRegion.id,
+    props.regions
+  );
+
   switch (props.deployType) {
     case DeployType.CompanyControlledWithUnrest:
       return (
@@ -287,10 +291,6 @@ const DeployDialogContent = (props: {
         </>
       );
     case DeployType.Dominated:
-      let totalStrength = calculateEmpireStrength(
-        props.targetRegion.id,
-        props.regions
-      );
       return (
         <>
           {props.isDeployAllowed ? (
@@ -309,20 +309,14 @@ const DeployDialogContent = (props: {
         </>
       );
     case DeployType.EmpireCapital:
-      let totalStrength2 = calculateEmpireStrength(
-        props.targetRegion.id,
-        props.regions
-      );
       return (
         <>
           {props.isDeployAllowed ? (
             <>
+              <Typography>This Empire's strength is {totalStrength}</Typography>
               <Typography>
-                This Empire's strength is {totalStrength2}
-              </Typography>
-              <Typography>
-                Exhaust troops to add to you dice pool. Subtract{" "}
-                {totalStrength2} dice from your pool and make a check.
+                Exhaust troops to add to you dice pool. Subtract {totalStrength}{" "}
+                dice from your pool and make a check.
               </Typography>
             </>
           ) : (
@@ -414,6 +408,12 @@ const DeploySuccessfulResultDialog = (props: {
             empire flag. Replace with the Governor overlay. Move control token
             to associated presidency.
           </Typography>
+          {doesEmpireShatter(props.targetRegion, props.regions) && (
+            <Typography>
+              {props.targetRegion.dominator} Empire shatters: Remove large flag
+              from {props.targetRegion.dominator}
+            </Typography>
+          )}
         </>
       );
     case DeployType.EmpireCapital:
@@ -447,3 +447,4 @@ const DeploySuccessfulResultDialog = (props: {
       return null;
   }
 };
+export { DeployType };
