@@ -308,7 +308,7 @@ export const CrisisEvent = (props: {
             {regionsWithUnrest.length > 0 && (
               <Typography>
                 Invasion triggers rebellions across india: resolve rebellion in{" "}
-                {regionsWithUnrest.join(", ")}
+                {regionsWithUnrest.map((r) => r.id).join(", ")}
               </Typography>
             )}
           </DialogContent>

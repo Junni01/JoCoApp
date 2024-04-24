@@ -1,4 +1,7 @@
 import {
+  Button,
+  Dialog,
+  DialogActions,
   DialogContent,
   DialogTitle,
   List,
@@ -13,6 +16,7 @@ export const PeaceEvent = (props: {
   regions: Region[];
   event: EventCard;
   elephant: Elephant;
+  onOk: () => void;
 }) => {
   const newElephantRegion = marchElephant(
     props.drawStackRegion,
@@ -25,7 +29,7 @@ export const PeaceEvent = (props: {
       (r) => r.id === props.elephant.TargetRegion
     );
     return (
-      <>
+      <Dialog open={true}>
         <DialogTitle>
           Event: Peace between <b>{props.elephant.MainRegion}</b> and{" "}
           <b>{props.elephant.TargetRegion}</b>
@@ -67,11 +71,14 @@ export const PeaceEvent = (props: {
             </ListItem>
           </List>
         </DialogContent>
-      </>
+        <DialogActions>
+          <Button onClick={() => props.onOk()}>Ok</Button>
+        </DialogActions>
+      </Dialog>
     );
   } else {
     return (
-      <>
+      <Dialog open={true}>
         <DialogTitle>
           Event: Peace in <b>{props.elephant.MainRegion}</b>
         </DialogTitle>
@@ -91,7 +98,10 @@ export const PeaceEvent = (props: {
             )}
           </Typography>
         </DialogContent>
-      </>
+        <DialogActions>
+          <Button onClick={() => props.onOk()}>Ok</Button>
+        </DialogActions>
+      </Dialog>
     );
   }
 };

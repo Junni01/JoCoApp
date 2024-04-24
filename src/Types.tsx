@@ -107,3 +107,8 @@ export type StormDieFace = {
   Sea: SeaZone;
   EventNumber: number;
 };
+
+export type Rebellion = {
+  Region: Region;
+  RebellionSuccessful: boolean;
+};

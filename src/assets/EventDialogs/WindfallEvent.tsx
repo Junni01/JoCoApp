@@ -1,9 +1,19 @@
-import { DialogContent, DialogTitle, Typography } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Typography,
+} from "@mui/material";
 import { Region } from "../../Types";
 
-export const WindfallEvent = (props: { drawStackRegion: Region }) => {
+export const WindfallEvent = (props: {
+  drawStackRegion: Region;
+  onOk: () => void;
+}) => {
   return (
-    <>
+    <Dialog open={true}>
       <DialogTitle>Event: Windfall in {props.drawStackRegion.id}</DialogTitle>
       <DialogContent>
         <Typography>
@@ -14,6 +24,9 @@ export const WindfallEvent = (props: { drawStackRegion: Region }) => {
           </b>
         </Typography>
       </DialogContent>
-    </>
+      <DialogActions>
+        <Button onClick={() => props.onOk()}>Ok</Button>
+      </DialogActions>
+    </Dialog>
   );
 };

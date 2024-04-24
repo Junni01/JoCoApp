@@ -1,8 +1,15 @@
-import { DialogContent, DialogTitle, Typography } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Typography,
+} from "@mui/material";
 
-export const ShuffleEvent = () => {
+export const ShuffleEvent = (props: { onOk: () => void }) => {
   return (
-    <>
+    <Dialog open={true}>
       <DialogTitle>Event: Shuffle</DialogTitle>
       <DialogContent>
         <Typography>
@@ -10,6 +17,9 @@ export const ShuffleEvent = () => {
           shuffled and put on top of the draw stack
         </Typography>
       </DialogContent>
-    </>
+      <DialogActions>
+        <Button onClick={() => props.onOk()}>Ok</Button>
+      </DialogActions>
+    </Dialog>
   );
 };

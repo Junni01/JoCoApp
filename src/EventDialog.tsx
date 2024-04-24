@@ -1,21 +1,24 @@
 import { Button, Dialog, DialogActions, Typography } from "@mui/material";
-import { Elephant, EventCard, EventType, Region } from "./Types";
+import { Elephant, EventCard, EventType, Rebellion, Region } from "./Types";
 import { PeaceEvent } from "./assets/EventDialogs/PeaceEvent";
 import { CrisisEvent } from "./assets/EventDialogs/CrisisEvent";
 import { LeaderEvent } from "./assets/EventDialogs/LeaderEvent";
 import { ShuffleEvent } from "./assets/EventDialogs/ShuffleEvent";
 import { TurmoilEvent } from "./assets/EventDialogs/TurmoilEvent";
 import { WindfallEvent } from "./assets/EventDialogs/WindfallEvent";
+import { useState } from "react";
 
 type EvenDialogProps = {
   event: EventCard;
   drawStackRegion: Region;
   regions: Region[];
   elephant: Elephant;
-  onOk: () => void;
+  onOk: (rebellions: Rebellion[]) => void;
 };
 
 export const EventDialog = (props: EvenDialogProps) => {
+  const [rebellions, setRebellions] = useState<Rebellion[]>([]);
+
   const renderDialogContent = () => {
     switch (props.event.type) {
       case EventType.Shuffle:
@@ -30,6 +33,8 @@ export const EventDialog = (props: EvenDialogProps) => {
             drawStackRegion={props.drawStackRegion}
             event={props.event}
             regions={props.regions}
+            rebellions={rebellions}
+            setRebellions={setRebellions}
           />
         );
       case EventType.Peace:
@@ -57,12 +62,5 @@ export const EventDialog = (props: EvenDialogProps) => {
     }
   };
 
-  return (
-    <Dialog open={true}>
-      {renderDialogContent()}
-      <DialogActions>
-        <Button onClick={props.onOk}>Ok</Button>
-      </DialogActions>
-    </Dialog>
-  );
+  return <Dialog open={true}>{renderDialogContent()}</Dialog>;
 };
