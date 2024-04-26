@@ -1,4 +1,10 @@
-import { Elephant, Region, RegionStatus, RegionSymbol } from "./Types";
+import {
+  CrisisType,
+  Elephant,
+  Region,
+  RegionStatus,
+  RegionSymbol,
+} from "./Types";
 
 export const calculateEmpireStrength = (
   regionId: string,
@@ -174,4 +180,59 @@ export const doesEmpireShatter = (targetRegion: Region, regions: Region[]) => {
     }
   }
   return false;
+};
+
+export const getCrisisType = (elephant: Elephant, regions: Region[]) => {
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+  if (!attacker) {
+    console.error("EventDialog: Elephant main region not found!");
+    return;
+  }
+
+  if (attacker.status === RegionStatus.CompanyControlled) {
+    return CrisisType.CompanyControlledRebels;
+  } else if (
+    attacker.status === RegionStatus.Dominated &&
+    attacker.dominator === defender?.id
+  ) {
+    return CrisisType.DominatedRebelsAgainstEmpire;
+  } else if (
+    (attacker.status === RegionStatus.EmpireCapital ||
+      attacker.status === RegionStatus.Dominated) &&
+    defender?.status === RegionStatus.CompanyControlled
+  ) {
+    return CrisisType.EmpireInvadesCompany;
+  } else if (
+    attacker.status === RegionStatus.Sovereign &&
+    defender?.status === RegionStatus.CompanyControlled
+  ) {
+    return CrisisType.SovereignInvadesCompany;
+  } else if (
+    (attacker.status === RegionStatus.EmpireCapital ||
+      attacker.status === RegionStatus.Dominated) &&
+    defender?.status === RegionStatus.Sovereign
+  ) {
+    return CrisisType.EmpireInvadesSovereign;
+  } else if (
+    attacker.status === RegionStatus.Sovereign &&
+    defender?.status === RegionStatus.EmpireCapital
+  ) {
+    return CrisisType.SovereignInvadesEmpireCapital;
+  } else if (
+    attacker.status === RegionStatus.Sovereign &&
+    defender?.status === RegionStatus.Dominated
+  ) {
+    return CrisisType.SovereignInvadesDominated;
+  } else if (
+    attacker.status === RegionStatus.Sovereign &&
+    defender?.status === RegionStatus.Sovereign
+  ) {
+    return CrisisType.SovereignInvadesSovereign;
+  } else {
+    console.error(
+      `Crisis type not found: ${attacker.status} - ${defender?.status}`
+    );
+  }
 };

@@ -8,6 +8,7 @@ import {
   Typography,
 } from "@mui/material";
 import {
+  CrisisType,
   DeployType,
   Elephant,
   EventCard,
@@ -23,7 +24,7 @@ import { useMemo, useState } from "react";
 import { DeployDialog } from "./DeployDialog";
 import { ModifyRegionDialog } from "./ModifyRegionDialog";
 import { EventDialog } from "./EventDialog";
-import { doesEmpireShatter, marchElephant } from "./Helpers";
+import { doesEmpireShatter, getCrisisType, marchElephant } from "./Helpers";
 import { ShuffleEvent } from "./assets/EventDialogs/ShuffleEvent";
 import { WindfallEvent } from "./assets/EventDialogs/WindfallEvent";
 import { TurmoilEvent } from "./assets/EventDialogs/TurmoilEvent";
@@ -440,6 +441,44 @@ function App() {
     setShowEventDialog(false);
   };
 
+  const executeCrisisEvent = (
+    mainCrisisWon: boolean,
+    rebellions: Rebellion[]
+  ) => {
+    const crisisType = getCrisisType(elephant, regions);
+
+    switch (crisisType) {
+      case CrisisType.SovereignInvadesSovereign:
+        return <SovereignInvadesSovereign {...props} />;
+      case CrisisType.SovereignInvadesDominated:
+        return <SovereignInvadesDominated {...props} />;
+
+      case CrisisType.SovereignInvadesEmpireCapital:
+        return <SovereignInvadesEmpireCapital {...props} />;
+      case CrisisType.EmpireInvadesSovereign:
+        return <EmpireInvadesSovereign {...props} />;
+
+      case CrisisType.DominatedRebelsAgainstEmpire:
+        return <DominatedRebelsAgainstEmpire {...props} />;
+
+      case CrisisType.SovereignInvadesCompany:
+        return <SovereignInvadesCompany {...props} />;
+
+      case CrisisType.EmpireInvadesCompany:
+        return <EmpireInvadesCompany {...props} />;
+
+      case CrisisType.CompanyControlledRebels:
+        return <CompanyControlledRebels {...props} />;
+      default:
+        console.error(
+          "Crisis Type Switch Case Default: This should not happen"
+        );
+    }
+    discardEvent();
+    setActiveEvent(undefined);
+    setShowEventDialog(false);
+  };
+
   const renderEventDialog = () => {
     if (!activeEvent) {
       return;
@@ -487,6 +526,7 @@ function App() {
             regions={regions}
             elephant={elephant}
             event={activeEvent}
+            onOk={executeCrisisEvent}
           />
         );
       case EventType.ForeignInvasion:
