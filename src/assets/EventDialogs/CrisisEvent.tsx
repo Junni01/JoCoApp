@@ -91,6 +91,8 @@ export const CrisisEvent = (props: {
           elephant={props.elephant}
           event={props.event}
           onOk={() => props.onOk(false, [])}
+          mainCrisisWon={mainCrisisWon}
+          setMainCrisisWon={setMainCrisisWon}
         />
       );
 
@@ -274,8 +276,8 @@ const SovereignInvadesEmpireCapital = (props: {
           <Typography>
             {attacker.id} successfully invades {defender?.id}. Place large
             empire flag on {attacker.id} and remove large empire flag from
-            {defender?.id} and replace it with a new small empire flag. Remove
-            small empire flags from:{" "}
+            {defender?.id} and replace it with a new small empire flag. Empire
+            Shatters : Remove small empire flags from:{" "}
             {getEmpireDominatedRegionIds(defender.id, props.regions).join(",")}
           </Typography>
         ) : (
@@ -375,11 +377,19 @@ const DominatedRebelsAgainstEmpire = (props: {
           {defender?.id} strength {defenseStrength}
         </Typography>
         {actionSuccessful ? (
-          <Typography>
-            {attacker.id} successfully rebels against {defender?.id}. Remove{" "}
-            {attacker.id} empire's small flag from {defender.id}. It is now a
-            Sovereign region.
-          </Typography>
+          <>
+            <Typography>
+              {attacker.id} successfully rebels against {defender?.id}. Remove{" "}
+              {attacker.id} empire's small flag from {defender.id}. It is now a
+              Sovereign region.
+            </Typography>
+            {doesEmpireShatter(attacker, props.regions) && (
+              <Typography>
+                {defender.dominator} Empire shatters: Remove large flag from{" "}
+                {defender.dominator}
+              </Typography>
+            )}
+          </>
         ) : (
           <Typography>
             {attacker.id} fails to rebels against {defender?.id}.

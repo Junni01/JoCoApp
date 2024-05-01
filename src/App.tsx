@@ -23,14 +23,19 @@ import { EventDeck, getElephantInitialPosition, getRegionData } from "./Data";
 import { useMemo, useState } from "react";
 import { DeployDialog } from "./DeployDialog";
 import { ModifyRegionDialog } from "./ModifyRegionDialog";
-import { EventDialog } from "./EventDialog";
-import { doesEmpireShatter, getCrisisType, marchElephant } from "./Helpers";
+import {
+  calculateEmpireStrength,
+  doesEmpireShatter,
+  getCrisisType,
+  marchElephant,
+} from "./Helpers";
 import { ShuffleEvent } from "./assets/EventDialogs/ShuffleEvent";
 import { WindfallEvent } from "./assets/EventDialogs/WindfallEvent";
 import { TurmoilEvent } from "./assets/EventDialogs/TurmoilEvent";
 import { LeaderEvent } from "./assets/EventDialogs/LeaderEvent";
 import { PeaceEvent } from "./assets/EventDialogs/PeaceEvent";
 import { CrisisEvent } from "./assets/EventDialogs/CrisisEvent";
+import { act } from "react-dom/test-utils";
 
 function App() {
   const scenario = Scenario.SeventeenTen;
@@ -323,8 +328,6 @@ function App() {
         (r) => r.id !== targetRegion?.id && r.id !== mainRegion?.id
       );
 
-      console.log("newRegionArray", newRegionArray);
-
       mainRegion.towerLevel++;
 
       if (targetRegion?.status !== RegionStatus.CompanyControlled) {
@@ -364,7 +367,6 @@ function App() {
     mainCrisisWon: boolean,
     rebellions: Rebellion[]
   ) => {
-    console.log("executeLeaderEvent");
     if (
       drawStackRegion.status === RegionStatus.Sovereign ||
       drawStackRegion.status === RegionStatus.EmpireCapital
@@ -399,7 +401,9 @@ function App() {
         }
         setRegions([...newRegionArray, drawStackRegion, dominator]);
       } else {
-        dominator.towerLevel--;
+        if (dominator.towerLevel > 0) {
+          dominator.towerLevel = dominator.towerLevel - 1;
+        }
         setRegions([...newRegionArray, drawStackRegion, dominator]);
       }
     }
@@ -424,7 +428,7 @@ function App() {
           region.controllingPresidency = undefined;
           region.towerLevel = 1;
         } else {
-          region.towerLevel--;
+          region.unrest = 0;
         }
         rebellionRegions.push(region);
       }
@@ -449,26 +453,29 @@ function App() {
 
     switch (crisisType) {
       case CrisisType.SovereignInvadesSovereign:
-        return <SovereignInvadesSovereign {...props} />;
+        executeSovereignInvadesSovereign();
+        break;
       case CrisisType.SovereignInvadesDominated:
-        return <SovereignInvadesDominated {...props} />;
-
+        executeSovereignInvadesDominated();
+        break;
       case CrisisType.SovereignInvadesEmpireCapital:
-        return <SovereignInvadesEmpireCapital {...props} />;
+        executeSovereignInvadesEmpireCapital();
+        break;
       case CrisisType.EmpireInvadesSovereign:
-        return <EmpireInvadesSovereign {...props} />;
-
+        executeEmpireInvadesSovereign();
+        break;
       case CrisisType.DominatedRebelsAgainstEmpire:
-        return <DominatedRebelsAgainstEmpire {...props} />;
-
+        executeDominatedRebelsAgainstEmpire();
+        break;
       case CrisisType.SovereignInvadesCompany:
-        return <SovereignInvadesCompany {...props} />;
-
+        executeSovereignInvadesCompany(mainCrisisWon, rebellions);
+        break;
       case CrisisType.EmpireInvadesCompany:
-        return <EmpireInvadesCompany {...props} />;
-
+        executeEmpireInvadesCompany(mainCrisisWon, rebellions);
+        break;
       case CrisisType.CompanyControlledRebels:
-        return <CompanyControlledRebels {...props} />;
+        executeCompanyControlledRebels(mainCrisisWon, rebellions);
+        break;
       default:
         console.error(
           "Crisis Type Switch Case Default: This should not happen"
@@ -477,6 +484,320 @@ function App() {
     discardEvent();
     setActiveEvent(undefined);
     setShowEventDialog(false);
+  };
+
+  const executeSovereignInvadesSovereign = () => {
+    const attacker = regions.find((r) => r.id === elephant.MainRegion);
+    const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    const newRegions = regions.filter(
+      (r) => r.id != attacker.id && r.id != defender.id
+    );
+
+    const attackStrength = attacker.towerLevel + (activeEvent?.strength ?? 0);
+    const defenseStrength = defender.towerLevel;
+    const actionSuccessful = attackStrength > defenseStrength;
+    if (actionSuccessful) {
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegions, attacker, defender]);
+  };
+
+  const executeSovereignInvadesDominated = () => {
+    const attacker = regions.find((r) => r.id === elephant.MainRegion);
+    const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    const defenderDominator = regions.find((r) => r.id === defender.dominator);
+
+    if (!defenderDominator) {
+      console.error("EventDialog: Attacked of defender dominator not found!");
+      return;
+    }
+    const newRegions = regions.filter(
+      (r) => r.id != attacker.id && r.id != defender.id && defenderDominator.id
+    );
+
+    const attackStrength = attacker.towerLevel + (activeEvent?.strength ?? 0);
+    const defenseStrength = calculateEmpireStrength(defender.id, regions) ?? 0;
+    const actionSuccessful = attackStrength > defenseStrength;
+
+    if (actionSuccessful) {
+      if (doesEmpireShatter(defender, regions)) {
+        defenderDominator.status = RegionStatus.Sovereign;
+      }
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegions, attacker, defender, defenderDominator]);
+  };
+
+  const executeSovereignInvadesEmpireCapital = () => {
+    const attacker = regions.find((r) => r.id === elephant.MainRegion);
+    const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    const defenderDominatedRegions = regions.filter(
+      (r) => r.dominator === defender.id
+    );
+
+    const newRegions = regions.filter(
+      (r) =>
+        r.id != attacker.id &&
+        r.id != defender.id &&
+        defenderDominatedRegions.includes(r)
+    );
+
+    const attackStrength = attacker.towerLevel + (activeEvent?.strength ?? 0);
+    const defenseStrength = calculateEmpireStrength(defender.id, regions) ?? 0;
+    const actionSuccessful = attackStrength > defenseStrength;
+
+    if (actionSuccessful) {
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+
+      defenderDominatedRegions.forEach((r) => {
+        r.dominator = undefined;
+        r.status = RegionStatus.Sovereign;
+      });
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+
+    setRegions([
+      ...newRegions,
+      attacker,
+      defender,
+      ...defenderDominatedRegions,
+    ]);
+  };
+
+  const executeEmpireInvadesSovereign = () => {
+    const attacker = regions.find((r) => r.id === elephant.MainRegion);
+    const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    const newRegions = regions.filter(
+      (r) => r.id != attacker.id && r.id != defender.id
+    );
+
+    const attackStrength =
+      (calculateEmpireStrength(defender.id, regions) ?? 0) +
+      (activeEvent?.strength ?? 0);
+    const defenseStrength = defender.towerLevel;
+    const actionSuccessful = attackStrength > defenseStrength;
+
+    if (actionSuccessful) {
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegions, attacker, defender]);
+  };
+
+  const executeDominatedRebelsAgainstEmpire = () => {
+    const attacker = regions.find((r) => r.id === elephant.MainRegion);
+    const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    const attackStrength = attacker.towerLevel + (activeEvent?.strength ?? 0);
+    const defenseStrength = defender.towerLevel;
+    const actionSuccessful = attackStrength > defenseStrength;
+
+    const newRegions = regions.filter(
+      (r) => r.id != attacker.id && r.id != defender.id
+    );
+
+    if (actionSuccessful) {
+      if (doesEmpireShatter(attacker, regions)) {
+        defender.status = RegionStatus.Sovereign;
+      }
+      attacker.status = RegionStatus.Sovereign;
+      attacker.dominator = undefined;
+    } else {
+      if (defender.towerLevel > 0) {
+        defender.towerLevel = defender.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegions, attacker, defender]);
+  };
+
+  const executeSovereignInvadesCompany = (
+    majorCrisisWon: boolean,
+    additionalRebellions: Rebellion[]
+  ) => {
+    const attacker = regions.find((r) => r.id === elephant.MainRegion);
+    const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    if (majorCrisisWon) {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    } else {
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Sovereign;
+      defender.controllingPresidency = undefined;
+      defender.dominator = attacker.id;
+      defender.towerLevel = 1;
+      defender.unrest = 0;
+    }
+
+    const rebellionRegions: Region[] = [];
+
+    for (const rebellion of additionalRebellions) {
+      const region = regions.find((r) => r.id === rebellion.Region.id);
+
+      if (!region) {
+        console.error("Region not found in regions array");
+        return;
+      }
+      if (rebellion.RebellionSuccessful) {
+        region.status = RegionStatus.Sovereign;
+        region.controllingPresidency = undefined;
+        region.towerLevel = 1;
+      } else {
+        region.unrest = 0;
+      }
+      rebellionRegions.push(region);
+    }
+
+    const newRegionArray = regions.filter(
+      (r) =>
+        !rebellionRegions.includes(r) &&
+        r.id === attacker.id &&
+        r.id === defender.id
+    );
+
+    setRegions([...newRegionArray, ...rebellionRegions, attacker, defender]);
+  };
+
+  const executeEmpireInvadesCompany = (
+    majorCrisisWon: boolean,
+    additionalRebellions: Rebellion[]
+  ) => {
+    const attacker = regions.find((r) => r.id === elephant.MainRegion);
+    const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    if (majorCrisisWon) {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    } else {
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+      defender.controllingPresidency = undefined;
+      defender.towerLevel = 1;
+      defender.unrest = 0;
+    }
+
+    const rebellionRegions: Region[] = [];
+
+    for (const rebellion of additionalRebellions) {
+      const region = regions.find((r) => r.id === rebellion.Region.id);
+
+      if (!region) {
+        console.error("Region not found in regions array");
+        return;
+      }
+      if (rebellion.RebellionSuccessful) {
+        region.status = RegionStatus.Sovereign;
+        region.controllingPresidency = undefined;
+        region.towerLevel = 1;
+      } else {
+        region.unrest = 0;
+      }
+      rebellionRegions.push(region);
+    }
+
+    const newRegionArray = regions.filter(
+      (r) =>
+        !rebellionRegions.includes(r) &&
+        r.id === attacker.id &&
+        r.id === defender.id
+    );
+
+    setRegions([...newRegionArray, ...rebellionRegions, attacker, defender]);
+  };
+
+  const executeCompanyControlledRebels = (
+    majorCrisisWon: boolean,
+    additionalRebellions: Rebellion[]
+  ) => {
+    const rebellionRegions: Region[] = [];
+
+    additionalRebellions.push({
+      Region: drawStackRegion,
+      RebellionSuccessful: majorCrisisWon,
+    });
+
+    for (const rebellion of additionalRebellions) {
+      const region = regions.find((r) => r.id === rebellion.Region.id);
+
+      if (!region) {
+        console.error("Region not found in regions array");
+        return;
+      }
+      if (rebellion.RebellionSuccessful) {
+        region.status = RegionStatus.Sovereign;
+        region.controllingPresidency = undefined;
+        region.towerLevel = 1;
+      } else {
+        region.unrest = 0;
+      }
+      rebellionRegions.push(region);
+    }
+
+    const newRegionArray = regions.filter((r) => !rebellionRegions.includes(r));
+
+    setRegions([...newRegionArray, ...rebellionRegions]);
   };
 
   const renderEventDialog = () => {

@@ -42,6 +42,14 @@ export const LeaderEvent = (props: {
     }
   };
 
+  const handleNoCrisisOk = () => {
+    props.onOk(false, []);
+  };
+
+  const handleCrisisOk = () => {
+    props.onOk(mainCrisisWon, rebellions);
+  };
+
   const renderDialogContent = () => {
     if (
       props.drawStackRegion.status === RegionStatus.Sovereign ||
@@ -50,6 +58,7 @@ export const LeaderEvent = (props: {
       return (
         <LeaderInSovereignAndCapital
           mainRegionName={props.drawStackRegion.id}
+          onOk={handleNoCrisisOk}
         />
       );
     } else if (props.drawStackRegion.status === RegionStatus.Dominated) {
@@ -58,6 +67,7 @@ export const LeaderEvent = (props: {
           drawStackRegion={props.drawStackRegion}
           regions={props.regions}
           event={props.event}
+          onOk={handleNoCrisisOk}
         />
       );
     } else if (
@@ -72,6 +82,7 @@ export const LeaderEvent = (props: {
           setMainCrisisWon={setMainCrisisWon}
           handleResolveCrisis={handleResolveCrisis}
           rebellions={rebellions}
+          onOk={handleCrisisOk}
         />
       );
     } else {
@@ -91,7 +102,10 @@ export const LeaderEvent = (props: {
   );
 };
 
-const LeaderInSovereignAndCapital = (props: { mainRegionName: string }) => {
+const LeaderInSovereignAndCapital = (props: {
+  mainRegionName: string;
+  onOk: () => void;
+}) => {
   return (
     <>
       <DialogTitle>Event: Leader in {props.mainRegionName}.</DialogTitle>
@@ -99,6 +113,9 @@ const LeaderInSovereignAndCapital = (props: { mainRegionName: string }) => {
         <Typography>The region's strength grows</Typography>
         <Typography>Add 1 tower level to {props.mainRegionName}</Typography>
       </DialogContent>
+      <DialogActions>
+        <Button onClick={() => props.onOk()}>Ok</Button>
+      </DialogActions>
     </>
   );
 };
@@ -107,6 +124,7 @@ const LeaderInDominated = (props: {
   drawStackRegion: Region;
   regions: Region[];
   event: EventCard;
+  onOk: () => void;
 }) => {
   const dominator = props.regions.find(
     (r) => r.id === props.drawStackRegion.dominator
@@ -153,6 +171,9 @@ const LeaderInDominated = (props: {
           </Typography>
         )}
       </DialogContent>
+      <DialogActions>
+        <Button onClick={() => props.onOk()}>Ok</Button>
+      </DialogActions>
     </>
   );
 };
@@ -165,7 +186,19 @@ const LeaderInCompanyControlled = (props: {
   mainCrisisWon: boolean | undefined;
   handleResolveCrisis: (Region: Region, RebellionSuccessful: boolean) => void;
   rebellions: Rebellion[];
+  onOk: () => void;
 }) => {
+  const [activeAdditionalCrisis, setActiveAdditionalCrisis] = useState<
+    Region | undefined
+  >();
+  const [showResults, setShowResults] = useState<boolean>(false);
+
+  const handleShowResults = () => {
+    setShowResults(true);
+  };
+
+  const handleResultsConfirm = () => {};
+
   return (
     <>
       <DialogTitle>Event: Leader in {props.drawStackRegion.id}.</DialogTitle>
@@ -234,6 +267,123 @@ const LeaderInCompanyControlled = (props: {
           </>
         ))}
       </DialogContent>
+      <DialogActions>
+        {activeAdditionalCrisis === props.additionalCrises.length + 1 ? (
+          <Button>Ok</Button>
+        ) : (
+          <Button>Ok</Button>
+        )}
+      </DialogActions>
+    </>
+  );
+};
+
+const RebellionAction = (props: {
+  region: Region;
+  rebellionStrength: number;
+  controllingPresidencyName: string;
+  IsRebellionDefeated: boolean;
+  setIsRebellionDefeated: (successful: boolean) => void;
+}) => {
+  return (
+    <>
+      <Typography>
+        Rebellion in {props.region.id} against the company. The rebellion
+        strength is {props.rebellionStrength}
+        Exhaust troops in {props.controllingPresidencyName} army to suppress the
+        rebellion.
+      </Typography>
+      <FormControl>
+        <RadioGroup
+          name="controlled-radio-buttons-group"
+          value={props.IsRebellionDefeated}
+          onChange={(e) =>
+            props.setIsRebellionDefeated(e.target.value === "true")
+          }
+        >
+          <FormControlLabel
+            value={true}
+            control={<Radio />}
+            label="Rebellion Suppressed"
+          />
+          <FormControlLabel
+            value={false}
+            control={<Radio />}
+            label="Rebellion Succeeded"
+          />
+        </RadioGroup>
+      </FormControl>
+    </>
+  );
+};
+
+const RebellionResult = (props: {
+  region: Region;
+  rebellionStrength: number;
+  controllingPresidencyName: string;
+  IsRebellionDefeated: boolean;
+  setIsRebellionDefeated: (successful: boolean) => void;
+}) => {
+  if (props.IsRebellionDefeated) {
+    return (
+      <>
+        <Typography>
+          {props.controllingPresidencyName} army successfully manages to
+          suppress the rebellion.
+        </Typography>
+        <Typography>
+          Commander of {props.controllingPresidencyName} army receives 1 trophy.
+          Remove all unrest from the region.
+        </Typography>
+      </>
+    );
+  } else {
+    <>
+      <Typography>Rebellion in {props.region.id} is successful.</Typography>
+      <Typography>
+        Tarnish the commander's name: Commander of the{" "}
+        {props.controllingPresidencyName} army returns half (rounding up) of the
+        trophies their family own to the supply. Return the Commander to its
+        supply. Officer Rout. Roll a die for every officer in the{" "}
+        {props.controllingPresidencyName} and remove it if the roll is a 6.
+        Eliminate governor: if the region has a governor remove It Restore Local
+        Authority: Remove company ship, any unrest in the region and place a
+        dome back in the region with one tower level. Close every open order in
+        the region, If all are already closed, resolve a Cascade. Lower the
+        company's standing by one to the left for each region lost this turn
+        (including this region)
+      </Typography>
+    </>;
+  }
+
+  return (
+    <>
+      <Typography>
+        Rebellion in {props.region.id} against the company. The rebellion
+        strength is {props.rebellionStrength}
+        Exhaust troops in {props.controllingPresidencyName} army to suppress the
+        rebellion.
+      </Typography>
+      <FormControl>
+        <RadioGroup
+          name="controlled-radio-buttons-group"
+          value={props.IsRebellionDefeated}
+          onChange={(e) =>
+            props.setIsRebellionDefeated(e.target.value === "true")
+          }
+        >
+          <FormControlLabel
+            value={true}
+            control={<Radio />}
+            label="Rebellion Suppressed"
+          />
+          <FormControlLabel
+            value={false}
+            control={<Radio />}
+            label="Rebellion Succeeded"
+          />
+        </RadioGroup>
+      </FormControl>
     </>
   );
 };
