@@ -11,9 +11,16 @@ import {
   RadioGroup,
   Typography,
 } from "@mui/material";
-import { Elephant, Presidency, Region, RegionStatus } from "./Types";
+import {
+  DeployType,
+  Elephant,
+  Presidency,
+  Region,
+  RegionStatus,
+} from "./Types";
 import {
   calculateEmpireStrength,
+  doesEmpireShatter,
   getEmpireDominatedRegionIds,
 } from "./Helpers";
 import { useState } from "react";
@@ -30,14 +37,6 @@ type DeployDialogProps = {
   onCancel: () => void;
   elephant: Elephant;
 };
-
-export enum DeployType {
-  CompanyControlledWithUnrest,
-  CompanyControlledWithoutUnrest,
-  Sovereign,
-  Dominated,
-  EmpireCapital,
-}
 
 export const DeployDialog = (props: DeployDialogProps) => {
   const [showResults, setShowResults] = useState<boolean>(false);
@@ -125,7 +124,7 @@ export const DeployDialog = (props: DeployDialogProps) => {
                 {props.elephant.MainRegion === props.targetRegion.id &&
                   !!props.elephant.TargetRegion && (
                     <Typography>
-                      Elephan Redirect: Place elephant in the middle of{" "}
+                      Elephant Redirect: Place elephant in the middle of{" "}
                       {props.targetRegion.id}
                     </Typography>
                   )}
@@ -222,118 +221,118 @@ const DeployDialogContent = (props: {
   regions: Region[];
   isDeployAllowed: boolean;
 }) => {
-  switch (props.deployType) {
-    case DeployType.CompanyControlledWithUnrest:
-      return (
-        <>
-          {props.isDeployAllowed ? (
-            <>
-              <Typography>
-                Deploying to company controlled region with unrest tokens.
-              </Typography>
-              <Typography>
-                Exhaust troops to add to you dice pool, and make a check.
-              </Typography>
-            </>
-          ) : (
+  if (props.deployType === DeployType.CompanyControlledWithUnrest) {
+    return (
+      <>
+        {props.isDeployAllowed ? (
+          <>
             <Typography>
-              This presidency is not controlling this region, you cannot deploy
-              to another presidency's region
+              Deploying to company controlled region with unrest tokens.
             </Typography>
-          )}
-        </>
-      );
-    case DeployType.CompanyControlledWithoutUnrest:
-      return (
-        <>
-          {props.isDeployAllowed ? (
-            <>
-              <Typography>
-                This is a company controlled region that has no unrest, you can
-                deploy if it has closed orders that you can open. Otherwise
-                deploying to this region is not allowed.
-              </Typography>
-              <Typography>
-                Exhaust troops to add to you dice pool, and make a check.
-              </Typography>
-            </>
-          ) : (
             <Typography>
-              This presidency is not controlling this region, you cannot deploy
-              to another presidency's region
+              Exhaust troops to add to you dice pool, and make a check.
             </Typography>
-          )}
-        </>
-      );
-    case DeployType.Sovereign:
-      return (
-        <>
-          {props.isDeployAllowed ? (
-            <>
-              <Typography>
-                This regions strength is {props.targetRegion.towerLevel}
-              </Typography>
-              <Typography>
-                Exhaust troops to add to you dice pool. Subtract{" "}
-                {props.targetRegion.towerLevel} dice from your pool and make a
-                check.
-              </Typography>
-            </>
-          ) : (
+          </>
+        ) : (
+          <Typography>
+            This presidency is not controlling this region, you cannot deploy to
+            another presidency's region
+          </Typography>
+        )}
+      </>
+    );
+  }
+  if (props.deployType === DeployType.CompanyControlledWithoutUnrest) {
+    return (
+      <>
+        {props.isDeployAllowed ? (
+          <>
             <Typography>
-              Deploying to another presidency's home region is not allowed
+              This is a company controlled region that has no unrest, you can
+              deploy if it has closed orders that you can open. Otherwise
+              deploying to this region is not allowed.
             </Typography>
-          )}
-        </>
-      );
-    case DeployType.Dominated:
-      let totalStrength = calculateEmpireStrength(
-        props.targetRegion.id,
-        props.regions
-      );
-      return (
-        <>
-          {props.isDeployAllowed ? (
-            <>
-              <Typography>This Empire's strength is {totalStrength}</Typography>
-              <Typography>
-                Exhaust troops to add to you dice pool. Subtract {totalStrength}{" "}
-                dice from your pool and make a check.
-              </Typography>
-            </>
-          ) : (
             <Typography>
-              Deploying to another presidency's home region is not allowed
+              Exhaust troops to add to you dice pool, and make a check.
             </Typography>
-          )}
-        </>
-      );
-    case DeployType.EmpireCapital:
-      let totalStrength2 = calculateEmpireStrength(
-        props.targetRegion.id,
-        props.regions
-      );
-      return (
-        <>
-          {props.isDeployAllowed ? (
-            <>
-              <Typography>
-                This Empire's strength is {totalStrength2}
-              </Typography>
-              <Typography>
-                Exhaust troops to add to you dice pool. Subtract{" "}
-                {totalStrength2} dice from your pool and make a check.
-              </Typography>
-            </>
-          ) : (
+          </>
+        ) : (
+          <Typography>
+            This presidency is not controlling this region, you cannot deploy to
+            another presidency's region
+          </Typography>
+        )}
+      </>
+    );
+  }
+  if (props.deployType === DeployType.Sovereign) {
+    return (
+      <>
+        {props.isDeployAllowed ? (
+          <>
             <Typography>
-              Deploying to another presidency's home region is not allowed
+              This regions strength is {props.targetRegion.towerLevel}
             </Typography>
-          )}
-        </>
-      );
-    default:
-      return null;
+            <Typography>
+              Exhaust troops to add to you dice pool. Subtract{" "}
+              {props.targetRegion.towerLevel} dice from your pool and make a
+              check.
+            </Typography>
+          </>
+        ) : (
+          <Typography>
+            Deploying to another presidency's home region is not allowed
+          </Typography>
+        )}
+      </>
+    );
+  }
+
+  if (props.deployType === DeployType.Dominated) {
+    const totalStrength = calculateEmpireStrength(
+      props.targetRegion.id,
+      props.regions
+    );
+    return (
+      <>
+        {props.isDeployAllowed ? (
+          <>
+            <Typography>This Empire's strength is {totalStrength}</Typography>
+            <Typography>
+              Exhaust troops to add to you dice pool. Subtract {totalStrength}{" "}
+              dice from your pool and make a check.
+            </Typography>
+          </>
+        ) : (
+          <Typography>
+            Deploying to another presidency's home region is not allowed
+          </Typography>
+        )}
+      </>
+    );
+  }
+  if (props.deployType === DeployType.EmpireCapital) {
+    const totalStrength = calculateEmpireStrength(
+      props.targetRegion.id,
+      props.regions
+    );
+    return (
+      <>
+        {props.isDeployAllowed ? (
+          <>
+            <Typography>This Empire's strength is {totalStrength}</Typography>
+            <Typography>
+              Exhaust troops to add to you dice pool. Subtract {totalStrength}{" "}
+              dice from your pool and make a check.
+            </Typography>
+          </>
+        ) : (
+          <Typography>
+            Deploying to another presidency's home region is not allowed
+          </Typography>
+        )}
+      </>
+    );
   }
 };
 
@@ -414,6 +413,12 @@ const DeploySuccessfulResultDialog = (props: {
             empire flag. Replace with the Governor overlay. Move control token
             to associated presidency.
           </Typography>
+          {doesEmpireShatter(props.targetRegion, props.regions) && (
+            <Typography>
+              {props.targetRegion.dominator} Empire shatters: Remove large flag
+              from {props.targetRegion.dominator}
+            </Typography>
+          )}
         </>
       );
     case DeployType.EmpireCapital:
@@ -447,3 +452,4 @@ const DeploySuccessfulResultDialog = (props: {
       return null;
   }
 };
+export { DeployType };

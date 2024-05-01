@@ -1,4 +1,10 @@
-import { Elephant, Region, RegionStatus, RegionSymbol } from "./Types";
+import {
+  CrisisType,
+  Elephant,
+  Region,
+  RegionStatus,
+  RegionSymbol,
+} from "./Types";
 
 export const calculateEmpireStrength = (
   regionId: string,
@@ -52,102 +58,181 @@ export const marchElephant = (
   regions: Region[],
   symbol: RegionSymbol
 ) => {
-  switch (targetRegion.status) {
-    case RegionStatus.CompanyControlled:
-      return {
-        MainRegion: targetRegion.id,
-        TargetRegion: undefined,
-      } as Elephant;
-    case RegionStatus.Dominated:
-      return {
-        MainRegion: targetRegion.id,
-        TargetRegion: targetRegion.dominator,
-      } as Elephant;
-    case RegionStatus.Sovereign:
-      const symbolRegion = targetRegion.neighbors.find((r) =>
-        r.symbol.includes(symbol)
+  if (targetRegion.status === RegionStatus.CompanyControlled) {
+    return {
+      MainRegion: targetRegion.id,
+      TargetRegion: undefined,
+    } as Elephant;
+  }
+  if (targetRegion.status === RegionStatus.Dominated) {
+    return {
+      MainRegion: targetRegion.id,
+      TargetRegion: targetRegion.dominator,
+    } as Elephant;
+  }
+  if (targetRegion.status === RegionStatus.Sovereign) {
+    const symbolRegion = targetRegion.neighbors.find((r) =>
+      r.symbol.includes(symbol)
+    );
+    if (!symbolRegion) {
+      console.error(
+        "Symbol neighbor for sovereign region not found",
+        targetRegion + symbol
       );
-      if (!symbolRegion) {
-        console.error(
-          "Symbol neighbor for sovereign region not found",
-          targetRegion + symbol
-        );
-      }
-      return {
-        MainRegion: targetRegion.id,
-        TargetRegion: symbolRegion?.regionId,
-      } as Elephant;
-    case RegionStatus.EmpireCapital:
-      const neighborIds = targetRegion.neighbors.map((r) => r.regionId);
-      const neighbors = regions.filter((r) => neighborIds.includes(r.id));
+    }
+    return {
+      MainRegion: targetRegion.id,
+      TargetRegion: symbolRegion?.regionId,
+    } as Elephant;
+  }
+  if (targetRegion.status === RegionStatus.EmpireCapital) {
+    const neighborIds = targetRegion.neighbors.map((r) => r.regionId);
+    const neighbors = regions.filter((r) => neighborIds.includes(r.id));
 
-      if (neighbors.every((r) => r.dominator === targetRegion.id)) {
-        const rebellingRegion = targetRegion.neighbors.find((r) =>
-          r.symbol.includes(symbol)
-        );
-
-        if (!rebellingRegion) {
-          console.error("symbol region should exist!");
-        }
-
-        return {
-          MainRegion: rebellingRegion?.regionId,
-          TargetRegion: targetRegion.id,
-        } as Elephant;
-      }
-
-      const primaryTargetNeighbor = targetRegion.neighbors.find((r) =>
+    if (neighbors.every((r) => r.dominator === targetRegion.id)) {
+      const rebellingRegion = targetRegion.neighbors.find((r) =>
         r.symbol.includes(symbol)
       );
 
-      if (!primaryTargetNeighbor) {
+      if (!rebellingRegion) {
         console.error("symbol region should exist!");
-        return;
       }
 
-      const primaryTarget = regions.find(
-        (r) => r.id === primaryTargetNeighbor?.regionId
-      );
+      return {
+        MainRegion: rebellingRegion?.regionId,
+        TargetRegion: targetRegion.id,
+      } as Elephant;
+    }
 
-      if (!primaryTarget) {
-        console.error("symbol region should exist!");
-        return;
+    const primaryTargetNeighbor = targetRegion.neighbors.find((r) =>
+      r.symbol.includes(symbol)
+    );
+
+    if (!primaryTargetNeighbor) {
+      console.error("symbol region should exist!");
+      return;
+    }
+
+    const primaryTarget = regions.find(
+      (r) => r.id === primaryTargetNeighbor?.regionId
+    );
+
+    if (!primaryTarget) {
+      console.error("symbol region should exist!");
+      return;
+    }
+
+    if (primaryTarget.dominator !== targetRegion.dominator) {
+      return {
+        MainRegion: targetRegion.id,
+        TargetRegion: primaryTarget.id,
+      } as Elephant;
+    }
+
+    let primaryTargetIndex = targetRegion.neighbors.indexOf(
+      primaryTargetNeighbor
+    );
+
+    const maxAttempts = targetRegion.neighbors.length;
+
+    for (let i = 0; i < maxAttempts; i++) {
+      if (primaryTargetIndex === targetRegion.neighbors.length) {
+        primaryTargetIndex = 0;
       }
 
-      if (primaryTarget.dominator !== targetRegion.dominator) {
+      const targetNeighbour = targetRegion.neighbors[primaryTargetIndex];
+
+      const target = regions.find((r) => r.id === targetNeighbour.regionId);
+
+      if (target?.dominator !== targetRegion.id) {
         return {
           MainRegion: targetRegion.id,
-          TargetRegion: primaryTarget.id,
+          TargetRegion: target?.id,
         } as Elephant;
       }
+    }
+  }
 
-      let primaryTargetIndex = targetRegion.neighbors.indexOf(
-        primaryTargetNeighbor
-      );
+  console.error("No target region found");
+  return {
+    MainRegion: targetRegion.id,
+    TargetRegion: undefined,
+  } as Elephant;
+};
 
-      const maxAttempts = targetRegion.neighbors.length;
+export const doesEmpireShatter = (targetRegion: Region, regions: Region[]) => {
+  if (targetRegion.status === RegionStatus.EmpireCapital) {
+    return true;
+  }
 
-      for (let i = 0; i < maxAttempts; i++) {
-        if (primaryTargetIndex === targetRegion.neighbors.length) {
-          primaryTargetIndex = 0;
-        }
+  if (targetRegion.status === RegionStatus.Dominated) {
+    const empireCapital = regions.find((r) => r.id === targetRegion.dominator);
+    if (!empireCapital) {
+      console.error("Empire Capital not found for Dominated Region");
+      return false;
+    }
 
-        const targetNeighbour = targetRegion.neighbors[primaryTargetIndex];
+    const empireDominatedRegions = regions.filter(
+      (r) => r.dominator === empireCapital.id && r.id !== targetRegion.id
+    );
+    if (empireDominatedRegions.length === 0) {
+      return true;
+    }
+  }
+  return false;
+};
 
-        const target = regions.find((r) => r.id === targetNeighbour.regionId);
+export const getCrisisType = (elephant: Elephant, regions: Region[]) => {
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
-        if (target?.dominator !== targetRegion.id) {
-          return {
-            MainRegion: targetRegion.id,
-            TargetRegion: target?.id,
-          } as Elephant;
-        }
-      }
+  if (!attacker) {
+    console.error("EventDialog: Elephant main region not found!");
+    return;
+  }
 
-      console.error("No target region found");
-      return {
-        MainRegion: targetRegion.id,
-        TargetRegion: undefined,
-      } as Elephant;
+  if (attacker.status === RegionStatus.CompanyControlled) {
+    return CrisisType.CompanyControlledRebels;
+  } else if (
+    attacker.status === RegionStatus.Dominated &&
+    attacker.dominator === defender?.id
+  ) {
+    return CrisisType.DominatedRebelsAgainstEmpire;
+  } else if (
+    (attacker.status === RegionStatus.EmpireCapital ||
+      attacker.status === RegionStatus.Dominated) &&
+    defender?.status === RegionStatus.CompanyControlled
+  ) {
+    return CrisisType.EmpireInvadesCompany;
+  } else if (
+    attacker.status === RegionStatus.Sovereign &&
+    defender?.status === RegionStatus.CompanyControlled
+  ) {
+    return CrisisType.SovereignInvadesCompany;
+  } else if (
+    (attacker.status === RegionStatus.EmpireCapital ||
+      attacker.status === RegionStatus.Dominated) &&
+    defender?.status === RegionStatus.Sovereign
+  ) {
+    return CrisisType.EmpireInvadesSovereign;
+  } else if (
+    attacker.status === RegionStatus.Sovereign &&
+    defender?.status === RegionStatus.EmpireCapital
+  ) {
+    return CrisisType.SovereignInvadesEmpireCapital;
+  } else if (
+    attacker.status === RegionStatus.Sovereign &&
+    defender?.status === RegionStatus.Dominated
+  ) {
+    return CrisisType.SovereignInvadesDominated;
+  } else if (
+    attacker.status === RegionStatus.Sovereign &&
+    defender?.status === RegionStatus.Sovereign
+  ) {
+    return CrisisType.SovereignInvadesSovereign;
+  } else {
+    console.error(
+      `Crisis type not found: ${attacker.status} - ${defender?.status}`
+    );
   }
 };

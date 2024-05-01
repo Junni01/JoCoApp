@@ -22,6 +22,25 @@ export enum RegionStatus {
   CompanyControlled = "Company Controlled",
 }
 
+export enum DeployType {
+  CompanyControlledWithUnrest,
+  CompanyControlledWithoutUnrest,
+  Sovereign,
+  Dominated,
+  EmpireCapital,
+}
+
+export enum CrisisType {
+  SovereignInvadesSovereign,
+  SovereignInvadesDominated,
+  SovereignInvadesEmpireCapital,
+  EmpireInvadesSovereign,
+  DominatedRebelsAgainstEmpire,
+  SovereignInvadesCompany,
+  EmpireInvadesCompany,
+  CompanyControlledRebels,
+}
+
 export enum RegionSymbol {
   Square = "Square",
   Circle = "Circle",
@@ -86,5 +105,10 @@ export enum SeaZone {
 
 export type StormDieFace = {
   Sea: SeaZone;
-  EventNumber: Number;
+  EventNumber: number;
+};
+
+export type Rebellion = {
+  Region: Region;
+  RebellionSuccessful: boolean;
 };
