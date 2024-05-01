@@ -4,7 +4,6 @@ import {
   Card,
   CardActions,
   CardContent,
-  CardHeader,
   Container,
   Typography,
 } from "@mui/material";
@@ -18,7 +17,7 @@ import {
   Scenario,
 } from "./Types";
 import { EventDeck, getElephantInitialPosition, getRegionData } from "./Data";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { DeployDialog, DeployType } from "./DeployDialog";
 import { ModifyRegionDialog } from "./ModifyRegionDialog";
 import { EventDialog } from "./EventDialog";
