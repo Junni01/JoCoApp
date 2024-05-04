@@ -50,7 +50,7 @@ export const getEmpireDominatedRegionIds = (
   empireId: string,
   regions: Region[]
 ) => {
-  return regions.filter((r) => r.dominator === empireId);
+  return regions.filter((r) => r.dominator === empireId).map((r) => r.id);
 };
 
 export const marchElephant = (
@@ -58,13 +58,17 @@ export const marchElephant = (
   regions: Region[],
   symbol: RegionSymbol
 ) => {
+  console.log("March Elephant!");
+
   if (targetRegion.status === RegionStatus.CompanyControlled) {
+    console.log("Elephants March: Company controlled Region Rebellion");
     return {
       MainRegion: targetRegion.id,
       TargetRegion: undefined,
     } as Elephant;
   }
   if (targetRegion.status === RegionStatus.Dominated) {
+    console.log("Elephants March: Dominated Region rebels against dominator");
     return {
       MainRegion: targetRegion.id,
       TargetRegion: targetRegion.dominator,
@@ -80,16 +84,25 @@ export const marchElephant = (
         targetRegion + symbol
       );
     }
+    console.log(
+      `Elephants March: Sovereign Region ${targetRegion.id} targets neighbor ${symbolRegion?.regionId}`
+    );
     return {
       MainRegion: targetRegion.id,
       TargetRegion: symbolRegion?.regionId,
     } as Elephant;
   }
   if (targetRegion.status === RegionStatus.EmpireCapital) {
+    console.log(
+      `Elephants March: Empire Region ${targetRegion.id} targets neighbor`
+    );
     const neighborIds = targetRegion.neighbors.map((r) => r.regionId);
     const neighbors = regions.filter((r) => neighborIds.includes(r.id));
 
     if (neighbors.every((r) => r.dominator === targetRegion.id)) {
+      console.log(
+        "Elephants March: No non-dominated neighbors found, inciting rebellion against empire"
+      );
       const rebellingRegion = targetRegion.neighbors.find((r) =>
         r.symbol.includes(symbol)
       );
@@ -122,25 +135,40 @@ export const marchElephant = (
       return;
     }
 
-    if (primaryTarget.dominator !== targetRegion.dominator) {
+    if (primaryTarget.dominator !== targetRegion.id) {
+      console.log(
+        `Elephants March: Empire ${targetRegion.id} primary target region is not dominated by the empire ${primaryTarget.id} selected as target`
+      );
       return {
         MainRegion: targetRegion.id,
         TargetRegion: primaryTarget.id,
       } as Elephant;
+    } else {
+      console.log(
+        `Elephants March: Empire ${targetRegion.id} primary target region is ${primaryTarget.id} but it is already dominated by ${targetRegion.id}`
+      );
     }
 
-    let primaryTargetIndex = targetRegion.neighbors.indexOf(
-      primaryTargetNeighbor
+    let primaryTargetIndex =
+      targetRegion.neighbors.indexOf(primaryTargetNeighbor) + 1;
+
+    console.log(
+      `Elephants March: Primary target index is ${primaryTargetIndex}`
     );
 
     const maxAttempts = targetRegion.neighbors.length;
 
     for (let i = 0; i < maxAttempts; i++) {
       if (primaryTargetIndex === targetRegion.neighbors.length) {
+        console.log(
+          `Elephants March: Primary target index is the last index, staring from the beginning of the array`
+        );
         primaryTargetIndex = 0;
       }
-
       const targetNeighbour = targetRegion.neighbors[primaryTargetIndex];
+      console.log(
+        `Elephants March: Next primary target is ${targetNeighbour.regionId} at index ${primaryTargetIndex}`
+      );
 
       const target = regions.find((r) => r.id === targetNeighbour.regionId);
 
@@ -150,6 +178,7 @@ export const marchElephant = (
           TargetRegion: target?.id,
         } as Elephant;
       }
+      primaryTargetIndex = primaryTargetIndex + 1;
     }
   }
 
@@ -230,6 +259,11 @@ export const getCrisisType = (elephant: Elephant, regions: Region[]) => {
     defender?.status === RegionStatus.Sovereign
   ) {
     return CrisisType.SovereignInvadesSovereign;
+  } else if (
+    attacker.status === RegionStatus.EmpireCapital &&
+    defender?.status === RegionStatus.Dominated
+  ) {
+    return CrisisType.EmpireInvadesDominated;
   } else {
     console.error(
       `Crisis type not found: ${attacker.status} - ${defender?.status}`

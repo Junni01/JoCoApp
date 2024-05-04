@@ -39,6 +39,7 @@ export enum CrisisType {
   SovereignInvadesCompany,
   EmpireInvadesCompany,
   CompanyControlledRebels,
+  EmpireInvadesDominated,
 }
 
 export enum RegionSymbol {
@@ -110,5 +111,5 @@ export type StormDieFace = {
 
 export type Rebellion = {
   Region: Region;
-  RebellionSuccessful: boolean;
+  RebellionSuppressed: boolean;
 };

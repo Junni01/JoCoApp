@@ -304,21 +304,11 @@ function App() {
       console.error("active event is undefined");
       return;
     }
-    const newElephantRegion = marchElephant(
-      drawStackRegion,
-      regions,
-      activeEvent.symbol
-    );
 
-    if (!newElephantRegion) {
-      console.error("newElephantRegion is undefined");
-      return;
-    }
+    const mainRegion = regions.find((r) => r.id === elephant.MainRegion);
+    const targetRegion = regions.find((r) => r.id === elephant.TargetRegion);
 
     if (elephant.TargetRegion !== undefined) {
-      const mainRegion = regions.find((r) => r.id === elephant.MainRegion);
-      const targetRegion = regions.find((r) => r.id === elephant.TargetRegion);
-
       if (!mainRegion || !targetRegion) {
         console.error("Main or Target region is undefined");
         return;
@@ -336,7 +326,6 @@ function App() {
 
       setRegions([...newRegionArray, mainRegion, targetRegion]);
     } else {
-      const mainRegion = regions.find((r) => r.id === elephant.MainRegion);
       if (!mainRegion) {
         console.error("Main region is undefined");
         return;
@@ -346,27 +335,14 @@ function App() {
       setRegions([...newRegionArray, mainRegion]);
     }
 
-    if (newElephantRegion.TargetRegion !== undefined) {
-      setElephant({
-        MainRegion: newElephantRegion.MainRegion,
-        TargetRegion: newElephantRegion.TargetRegion,
-      });
-    } else {
-      setElephant({
-        MainRegion: newElephantRegion.MainRegion,
-        TargetRegion: undefined,
-      });
-    }
+    executeElephantsMarch(false);
 
     discardEvent();
     setActiveEvent(undefined);
     setShowEventDialog(false);
   };
 
-  const executeLeaderEvent = (
-    mainCrisisWon: boolean,
-    rebellions: Rebellion[]
-  ) => {
+  const executeLeaderEvent = (rebellionOutcomes: Rebellion[]) => {
     if (
       drawStackRegion.status === RegionStatus.Sovereign ||
       drawStackRegion.status === RegionStatus.EmpireCapital
@@ -411,19 +387,14 @@ function App() {
     if (drawStackRegion.status === RegionStatus.CompanyControlled) {
       const rebellionRegions: Region[] = [];
 
-      rebellions.push({
-        Region: drawStackRegion,
-        RebellionSuccessful: mainCrisisWon,
-      });
-
-      for (const rebellion of rebellions) {
+      for (const rebellion of rebellionOutcomes) {
         const region = regions.find((r) => r.id === rebellion.Region.id);
 
         if (!region) {
           console.error("Region not found in regions array");
           return;
         }
-        if (rebellion.RebellionSuccessful) {
+        if (!rebellion.RebellionSuppressed) {
           region.status = RegionStatus.Sovereign;
           region.controllingPresidency = undefined;
           region.towerLevel = 1;
@@ -438,6 +409,7 @@ function App() {
       );
 
       setRegions([...newRegionArray, ...rebellionRegions]);
+      executeElephantsMarch(false);
     }
 
     discardEvent();
@@ -474,7 +446,7 @@ function App() {
         executeEmpireInvadesCompany(mainCrisisWon, rebellions);
         break;
       case CrisisType.CompanyControlledRebels:
-        executeCompanyControlledRebels(mainCrisisWon, rebellions);
+        executeCompanyControlledRebels(rebellions);
         break;
       default:
         console.error(
@@ -511,7 +483,14 @@ function App() {
         attacker.towerLevel = attacker.towerLevel - 1;
       }
     }
+
     setRegions([...newRegions, attacker, defender]);
+
+    if (actionSuccessful) {
+      executeElephantsMarch(true);
+    } else {
+      executeElephantsMarch(false);
+    }
   };
 
   const executeSovereignInvadesDominated = () => {
@@ -550,6 +529,12 @@ function App() {
       }
     }
     setRegions([...newRegions, attacker, defender, defenderDominator]);
+
+    if (actionSuccessful) {
+      executeElephantsMarch(true);
+    } else {
+      executeElephantsMarch(false);
+    }
   };
 
   const executeSovereignInvadesEmpireCapital = () => {
@@ -569,7 +554,7 @@ function App() {
       (r) =>
         r.id != attacker.id &&
         r.id != defender.id &&
-        defenderDominatedRegions.includes(r)
+        !defenderDominatedRegions.includes(r)
     );
 
     const attackStrength = attacker.towerLevel + (activeEvent?.strength ?? 0);
@@ -597,6 +582,12 @@ function App() {
       defender,
       ...defenderDominatedRegions,
     ]);
+
+    if (actionSuccessful) {
+      executeElephantsMarch(true);
+    } else {
+      executeElephantsMarch(false);
+    }
   };
 
   const executeEmpireInvadesSovereign = () => {
@@ -613,7 +604,7 @@ function App() {
     );
 
     const attackStrength =
-      (calculateEmpireStrength(defender.id, regions) ?? 0) +
+      (calculateEmpireStrength(attacker.id, regions) ?? 0) +
       (activeEvent?.strength ?? 0);
     const defenseStrength = defender.towerLevel;
     const actionSuccessful = attackStrength > defenseStrength;
@@ -627,6 +618,12 @@ function App() {
       }
     }
     setRegions([...newRegions, attacker, defender]);
+
+    if (actionSuccessful) {
+      executeElephantsMarch(true);
+    } else {
+      executeElephantsMarch(false);
+    }
   };
 
   const executeDominatedRebelsAgainstEmpire = () => {
@@ -658,6 +655,7 @@ function App() {
       }
     }
     setRegions([...newRegions, attacker, defender]);
+    executeElephantsMarch(false);
   };
 
   const executeSovereignInvadesCompany = (
@@ -694,7 +692,7 @@ function App() {
         console.error("Region not found in regions array");
         return;
       }
-      if (rebellion.RebellionSuccessful) {
+      if (!rebellion.RebellionSuppressed) {
         region.status = RegionStatus.Sovereign;
         region.controllingPresidency = undefined;
         region.towerLevel = 1;
@@ -712,6 +710,12 @@ function App() {
     );
 
     setRegions([...newRegionArray, ...rebellionRegions, attacker, defender]);
+
+    if (majorCrisisWon) {
+      executeElephantsMarch(false);
+    } else {
+      executeElephantsMarch(true);
+    }
   };
 
   const executeEmpireInvadesCompany = (
@@ -730,12 +734,14 @@ function App() {
       if (attacker.towerLevel > 0) {
         attacker.towerLevel = attacker.towerLevel - 1;
       }
+      executeElephantsMarch(false);
     } else {
       defender.status = RegionStatus.Dominated;
       defender.dominator = attacker.id;
       defender.controllingPresidency = undefined;
       defender.towerLevel = 1;
       defender.unrest = 0;
+      executeElephantsMarch(true);
     }
 
     const rebellionRegions: Region[] = [];
@@ -747,7 +753,7 @@ function App() {
         console.error("Region not found in regions array");
         return;
       }
-      if (rebellion.RebellionSuccessful) {
+      if (!rebellion.RebellionSuppressed) {
         region.status = RegionStatus.Sovereign;
         region.controllingPresidency = undefined;
         region.towerLevel = 1;
@@ -765,18 +771,18 @@ function App() {
     );
 
     setRegions([...newRegionArray, ...rebellionRegions, attacker, defender]);
+
+    if (majorCrisisWon) {
+      executeElephantsMarch(false);
+    } else {
+      executeElephantsMarch(true);
+    }
   };
 
   const executeCompanyControlledRebels = (
-    majorCrisisWon: boolean,
     additionalRebellions: Rebellion[]
   ) => {
     const rebellionRegions: Region[] = [];
-
-    additionalRebellions.push({
-      Region: drawStackRegion,
-      RebellionSuccessful: majorCrisisWon,
-    });
 
     for (const rebellion of additionalRebellions) {
       const region = regions.find((r) => r.id === rebellion.Region.id);
@@ -785,7 +791,7 @@ function App() {
         console.error("Region not found in regions array");
         return;
       }
-      if (rebellion.RebellionSuccessful) {
+      if (!rebellion.RebellionSuppressed) {
         region.status = RegionStatus.Sovereign;
         region.controllingPresidency = undefined;
         region.towerLevel = 1;
@@ -798,6 +804,7 @@ function App() {
     const newRegionArray = regions.filter((r) => !rebellionRegions.includes(r));
 
     setRegions([...newRegionArray, ...rebellionRegions]);
+    executeElephantsMarch(false);
   };
 
   const renderEventDialog = () => {
@@ -856,6 +863,42 @@ function App() {
       default:
         return;
     }
+  };
+
+  const executeElephantsMarch = (imperialAmbitions: boolean) => {
+    if (!activeEvent) {
+      console.error("Active event is null");
+      return;
+    }
+
+    const elephantMainRegion = regions.find(
+      (r) => r.id === elephant.MainRegion
+    );
+
+    if (!elephantMainRegion) {
+      console.error("Elephant main region missing");
+      return;
+    }
+
+    let newElephant: Elephant | undefined;
+
+    if (imperialAmbitions) {
+      console.log("Elephant: Imperial Ambitions");
+      newElephant = marchElephant(
+        elephantMainRegion,
+        regions,
+        activeEvent.symbol
+      );
+    } else {
+      console.log("Elephant: No Imperial Ambitions");
+      newElephant = marchElephant(drawStackRegion, regions, activeEvent.symbol);
+    }
+
+    if (!newElephant) {
+      console.error("Elephant march failed");
+      return;
+    }
+    setElephant(newElephant);
   };
 
   return (

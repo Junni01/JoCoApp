@@ -1,4 +1,11 @@
-import { Dialog, DialogContent, DialogTitle, Typography } from "@mui/material";
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Typography,
+} from "@mui/material";
 import {
   calculateEmpireStrength,
   doesEmpireShatter,
@@ -14,6 +21,7 @@ import {
   Rebellion,
 } from "../../Types";
 import { useState } from "react";
+import { RebellionInCompanyControlled } from "./Rebellions";
 
 export const CrisisEvent = (props: {
   regions: Region[];
@@ -21,114 +29,118 @@ export const CrisisEvent = (props: {
   event: EventCard;
   onOk: (primaryCrisisWon: boolean, rebellions: Rebellion[]) => void;
 }) => {
-  const additionalCrises = props.regions.filter(
-    (r) => r.status === RegionStatus.CompanyControlled && r.unrest > 0
-  );
-
-  const [rebellions, setRebellions] = useState<Rebellion[]>(
-    additionalCrises.map(
-      (r) => ({ Region: r, RebellionSuccessful: false } as Rebellion)
-    )
-  );
-  const [mainCrisisWon, setMainCrisisWon] = useState<boolean>(false);
-
-  const handleResolveCrisis = (
-    Region: Region,
-    RebellionSuccessful: boolean
-  ) => {
-    const rebellion = rebellions.find((r) => r.Region === Region);
-    if (rebellion) {
-      rebellion.RebellionSuccessful = RebellionSuccessful;
-      setRebellions([...rebellions]);
-    }
+  const handleCompanyControlledRebels = (rebellions: Rebellion[]) => {
+    props.onOk(false, rebellions);
   };
 
   const crisisType = getCrisisType(props.elephant, props.regions);
+  const renderDialog = () => {
+    switch (crisisType) {
+      case CrisisType.SovereignInvadesSovereign:
+        return (
+          <SovereignInvadesSovereign
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            onOk={() => props.onOk(false, [])}
+          />
+        );
+      case CrisisType.SovereignInvadesDominated:
+        return (
+          <SovereignInvadesDominated
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            onOk={() => props.onOk(false, [])}
+          />
+        );
 
-  switch (crisisType) {
-    case CrisisType.SovereignInvadesSovereign:
-      return (
-        <SovereignInvadesSovereign
-          regions={props.regions}
-          elephant={props.elephant}
-          event={props.event}
-          onOk={() => props.onOk(false, [])}
-        />
-      );
-    case CrisisType.SovereignInvadesDominated:
-      return (
-        <SovereignInvadesDominated
-          regions={props.regions}
-          elephant={props.elephant}
-          event={props.event}
-          onOk={() => props.onOk(false, [])}
-        />
-      );
+      case CrisisType.SovereignInvadesEmpireCapital:
+        return (
+          <SovereignInvadesEmpireCapital
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            onOk={() => props.onOk(false, [])}
+          />
+        );
+      case CrisisType.EmpireInvadesSovereign:
+        return (
+          <EmpireInvadesSovereign
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            onOk={() => props.onOk(false, [])}
+          />
+        );
 
-    case CrisisType.SovereignInvadesEmpireCapital:
-      return (
-        <SovereignInvadesEmpireCapital
-          regions={props.regions}
-          elephant={props.elephant}
-          event={props.event}
-          onOk={() => props.onOk(false, [])}
-        />
-      );
-    case CrisisType.EmpireInvadesSovereign:
-      return (
-        <EmpireInvadesSovereign
-          regions={props.regions}
-          elephant={props.elephant}
-          event={props.event}
-          onOk={() => props.onOk(false, [])}
-        />
-      );
+      case CrisisType.DominatedRebelsAgainstEmpire:
+        return (
+          <DominatedRebelsAgainstEmpire
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            onOk={() => props.onOk(false, [])}
+          />
+        );
 
-    case CrisisType.DominatedRebelsAgainstEmpire:
-      return (
-        <DominatedRebelsAgainstEmpire
-          regions={props.regions}
-          elephant={props.elephant}
-          event={props.event}
-          onOk={() => props.onOk(false, [])}
-          mainCrisisWon={mainCrisisWon}
-          setMainCrisisWon={setMainCrisisWon}
-        />
-      );
+      case CrisisType.SovereignInvadesCompany:
+        return (
+          <IndiaInvadesCompany
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            attackerIsEmpire={false}
+            onOk={props.onOk}
+          />
+        );
 
-    case CrisisType.SovereignInvadesCompany:
-      return (
-        <SovereignInvadesCompany
-          regions={props.regions}
-          elephant={props.elephant}
-          event={props.event}
-          onOk={() => props.onOk(mainCrisisWon, rebellions)}
-        />
-      );
+      case CrisisType.EmpireInvadesCompany:
+        return (
+          <IndiaInvadesCompany
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            attackerIsEmpire={true}
+            onOk={props.onOk}
+          />
+        );
 
-    case CrisisType.EmpireInvadesCompany:
-      return (
-        <EmpireInvadesCompany
-          regions={props.regions}
-          elephant={props.elephant}
-          event={props.event}
-          onOk={() => props.onOk(mainCrisisWon, rebellions)}
-        />
-      );
+      case CrisisType.CompanyControlledRebels:
+        return (
+          <CompanyControlledRebels
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            handleConfirmResults={() => handleCompanyControlledRebels}
+          />
+        );
+      case CrisisType.EmpireInvadesDominated:
+        return (
+          <EmpireInvadesDominated
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            onOk={() => props.onOk(false, [])}
+          />
+        );
 
-    case CrisisType.CompanyControlledRebels:
-      return (
-        <CompanyControlledRebels
-          regions={props.regions}
-          elephant={props.elephant}
-          event={props.event}
-          onOk={() => props.onOk(mainCrisisWon, rebellions)}
-        />
-      );
-    default:
-      console.error("Crisis Type Switch Case Default: This should not happen");
-      return;
-  }
+      default:
+        console.error(
+          "Crisis Type Switch Case Default: This should not happen"
+        );
+        return;
+    }
+  };
+  return (
+    <Dialog open={true}>
+      <DialogTitle>
+        Event: Crisis (Strength: {props.event.strength}, Symbol:{" "}
+        {props.event.symbol.toString()})
+      </DialogTitle>
+      {renderDialog()}
+    </Dialog>
+  );
 };
 
 const SovereignInvadesSovereign = (props: {
@@ -153,12 +165,11 @@ const SovereignInvadesSovereign = (props: {
   const defenseStrength = defender?.towerLevel ?? 0;
   const actionSuccessful = attackStrength > defenseStrength;
   return (
-    <Dialog open={true}>
-      <DialogTitle>
-        Event: Crisis, {props.elephant.MainRegion} invades{" "}
-        {props.elephant.TargetRegion}
-      </DialogTitle>
+    <>
       <DialogContent>
+        <Typography>
+          {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+        </Typography>
         <Typography>
           {attacker.id} strength {attackStrength} against {defender?.id}{" "}
           strength {defenseStrength}
@@ -177,7 +188,10 @@ const SovereignInvadesSovereign = (props: {
           </Typography>
         )}
       </DialogContent>
-    </Dialog>
+      <DialogActions>
+        <Button onClick={props.onOk}>Ok</Button>
+      </DialogActions>
+    </>
   );
 };
 const SovereignInvadesDominated = (props: {
@@ -203,12 +217,11 @@ const SovereignInvadesDominated = (props: {
     calculateEmpireStrength(defender.id, props.regions) ?? 0;
   const actionSuccessful = attackStrength > defenseStrength;
   return (
-    <Dialog open={true}>
-      <DialogTitle>
-        Event: Crisis, {props.elephant.MainRegion} invades{" "}
-        {props.elephant.TargetRegion}
-      </DialogTitle>
+    <>
       <DialogContent>
+        <Typography>
+          {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+        </Typography>
         <Typography>
           {attacker.id} strength {attackStrength} against {defender?.id}{" "}
           Empire's strength {defenseStrength}
@@ -236,7 +249,10 @@ const SovereignInvadesDominated = (props: {
           </Typography>
         )}
       </DialogContent>
-    </Dialog>
+      <DialogActions>
+        <Button onClick={props.onOk}>Ok</Button>
+      </DialogActions>
+    </>
   );
 };
 const SovereignInvadesEmpireCapital = (props: {
@@ -262,12 +278,11 @@ const SovereignInvadesEmpireCapital = (props: {
     calculateEmpireStrength(defender.id, props.regions) ?? 0;
   const actionSuccessful = attackStrength > defenseStrength;
   return (
-    <Dialog open={true}>
-      <DialogTitle>
-        Event: Crisis, {props.elephant.MainRegion} invades{" "}
-        {props.elephant.TargetRegion}
-      </DialogTitle>
+    <>
       <DialogContent>
+        <Typography>
+          {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+        </Typography>
         <Typography>
           {attacker.id} strength {attackStrength} against {defender?.id} Empire
           strength {defenseStrength}
@@ -289,7 +304,10 @@ const SovereignInvadesEmpireCapital = (props: {
           </Typography>
         )}
       </DialogContent>
-    </Dialog>
+      <DialogActions>
+        <Button onClick={props.onOk}>Ok</Button>
+      </DialogActions>
+    </>
   );
 };
 const EmpireInvadesSovereign = (props: {
@@ -311,17 +329,16 @@ const EmpireInvadesSovereign = (props: {
   }
 
   const attackStrength =
-    (calculateEmpireStrength(defender.id, props.regions) ?? 0) +
+    (calculateEmpireStrength(attacker.id, props.regions) ?? 0) +
     props.event.strength;
   const defenseStrength = defender.towerLevel;
   const actionSuccessful = attackStrength > defenseStrength;
   return (
-    <Dialog open={true}>
-      <DialogTitle>
-        Event: Crisis, {props.elephant.MainRegion} invades{" "}
-        {props.elephant.TargetRegion}
-      </DialogTitle>
+    <>
       <DialogContent>
+        <Typography>
+          {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+        </Typography>
         <Typography>
           {attacker.id} Empire strength {attackStrength} against {defender?.id}{" "}
           strength {defenseStrength}
@@ -340,16 +357,83 @@ const EmpireInvadesSovereign = (props: {
           </Typography>
         )}
       </DialogContent>
-    </Dialog>
+      <DialogActions>
+        <Button onClick={props.onOk}>Ok</Button>
+      </DialogActions>
+    </>
   );
 };
+
+const EmpireInvadesDominated = (props: {
+  regions: Region[];
+  elephant: Elephant;
+  event: EventCard;
+  onOk: () => void;
+}) => {
+  const attacker = props.regions.find(
+    (r) => r.id === props.elephant.MainRegion
+  );
+  const defender = props.regions.find(
+    (r) => r.id === props.elephant.TargetRegion
+  );
+
+  if (!attacker || !defender) {
+    console.error("EventDialog: Attacked of defender not found!");
+    return;
+  }
+
+  const attackStrength =
+    (calculateEmpireStrength(attacker.id, props.regions) ?? 0) +
+    props.event.strength;
+  const defenseStrength =
+    calculateEmpireStrength(defender.id, props.regions) ?? 0;
+  const actionSuccessful = attackStrength > defenseStrength;
+  return (
+    <>
+      <DialogContent>
+        <Typography>
+          {props.elephant.MainRegion} Empire invades{" "}
+          {props.elephant.TargetRegion} which is part of {defender.dominator}{" "}
+          empire
+        </Typography>
+        <Typography>
+          {attacker.id} Empire strength {attackStrength} against{" "}
+          {defender.dominator} empire strength {defenseStrength}
+        </Typography>
+        {actionSuccessful ? (
+          <>
+            <Typography>
+              {attacker.id} successfully invades {defender?.id}. Place{" "}
+              {attacker.id} empire's small flag on {defender.id}
+            </Typography>
+            {doesEmpireShatter(defender, props.regions) && (
+              <Typography>
+                {defender.dominator} Empire shatters: Remove large flag from{" "}
+                {defender.dominator}
+              </Typography>
+            )}
+          </>
+        ) : (
+          <Typography>
+            {attacker.id} fails to invade {defender?.id}.{" "}
+            {attacker.towerLevel > 0
+              ? `Remove one tower level from ${attacker.id}`
+              : ""}
+          </Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={props.onOk}>Ok</Button>
+      </DialogActions>
+    </>
+  );
+};
+
 const DominatedRebelsAgainstEmpire = (props: {
   regions: Region[];
   elephant: Elephant;
   event: EventCard;
   onOk: () => void;
-  setMainCrisisWon: (won: boolean) => void;
-  mainCrisisWon: boolean;
 }) => {
   const attacker = props.regions.find(
     (r) => r.id === props.elephant.MainRegion
@@ -367,11 +451,9 @@ const DominatedRebelsAgainstEmpire = (props: {
   const defenseStrength = defender.towerLevel;
   const actionSuccessful = attackStrength > defenseStrength;
   return (
-    <Dialog open={true}>
-      <DialogTitle>
-        Event: Crisis, Rebellion in {props.elephant.MainRegion}
-      </DialogTitle>
+    <>
       <DialogContent>
+        <Typography>Rebellion in {props.elephant.MainRegion}</Typography>
         <Typography>
           {attacker.id} strength {attackStrength} against Empire Capital{" "}
           {defender?.id} strength {defenseStrength}
@@ -399,14 +481,18 @@ const DominatedRebelsAgainstEmpire = (props: {
           </Typography>
         )}
       </DialogContent>
-    </Dialog>
+      <DialogActions>
+        <Button onClick={props.onOk}>Ok</Button>
+      </DialogActions>
+    </>
   );
 };
-const SovereignInvadesCompany = (props: {
+const IndiaInvadesCompany = (props: {
   regions: Region[];
   elephant: Elephant;
   event: EventCard;
-  onOk: () => void;
+  attackerIsEmpire: boolean;
+  onOk: (mainCrisisWon: boolean, rebellionResults: Rebellion[]) => void;
 }) => {
   const attacker = props.regions.find(
     (r) => r.id === props.elephant.MainRegion
@@ -424,125 +510,193 @@ const SovereignInvadesCompany = (props: {
     return;
   }
 
-  const attackStrength =
-    attacker.towerLevel + props.event.strength + defender.unrest;
+  const attackStrength = props.attackerIsEmpire
+    ? calculateEmpireStrength(attacker.id, props.regions) +
+      props.event.strength +
+      defender.unrest
+    : attacker.towerLevel + props.event.strength + defender.unrest;
+
+  const [mainCrisisWon, setMainCrisisWon] = useState<boolean>(false);
+  const [mainCrisisResolved, setMainCrisisResolved] = useState<boolean>(false);
+  const [showMainCrisisResults, setShowMainCrisisResults] =
+    useState<boolean>(false);
+  const [activeRebellionRegion, setActiveRebellionRegion] =
+    useState<Region>(defender);
+  const [rebellionOutcomes, setRebellionOutcomes] = useState<Rebellion[]>([]);
+  const [rebellionIndex, setRebellionIndex] = useState<number>(1);
+
+  const handleRebellionResolution = (rebellionSuppressed: boolean) => {
+    setRebellionOutcomes([
+      ...rebellionOutcomes,
+      {
+        Region: activeRebellionRegion,
+        RebellionSuppressed: rebellionSuppressed,
+      },
+    ]);
+
+    if (rebellionIndex + 1 > regionsWithUnrest.length) {
+      props.onOk(mainCrisisWon, rebellionOutcomes);
+    } else {
+      setActiveRebellionRegion(regionsWithUnrest[rebellionIndex]);
+      setRebellionIndex(rebellionIndex + 1);
+    }
+  };
+
+  const getRebellionStrength = () => {
+    return activeRebellionRegion.unrest;
+  };
+
+  const handleMainCrisisShowResults = (mainCrisisWon: boolean) => {
+    if (regionsWithUnrest.length === 0) {
+      props.onOk(mainCrisisWon, []);
+    } else {
+      setMainCrisisWon(mainCrisisWon);
+      setShowMainCrisisResults(true);
+    }
+  };
+
+  const handleMainCrisisDone = () => {
+    setShowMainCrisisResults(false);
+    setMainCrisisResolved(true);
+  };
+
   return (
-    <Dialog open={true}>
-      <DialogTitle>
-        Event: Crisis, {props.elephant.MainRegion} invades{" "}
-        {props.elephant.TargetRegion}
-      </DialogTitle>
-      <DialogContent>
-        <Typography>
-          {attacker.id} invades company controlled {defender.id}. The attacking
-          strength is {attackStrength}. Exhaust pieces in the{" "}
-          {attacker.controllingPresidency} army to mount defense, if the
-          newly-mounted pieces do not equal the attack strength the invasion
-          succeeds.
-        </Typography>
-        {regionsWithUnrest.length > 0 && (
+    <>
+      {!mainCrisisResolved && showMainCrisisResults ? (
+        <>
           <Typography>
-            Invasion triggers rebellions across india: resolve rebellion in{" "}
-            {regionsWithUnrest.map((r) => r.id).join(", ")}
+            {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
           </Typography>
-        )}
-      </DialogContent>
-    </Dialog>
+          <InvasionToCompanyControlledResults
+            invasionSuccessful={mainCrisisWon}
+            invadedRegion={defender}
+            onOk={handleMainCrisisDone}
+          />
+        </>
+      ) : (
+        <>
+          <Typography>
+            Event: Crisis, {props.elephant.MainRegion} invades{" "}
+            {props.elephant.TargetRegion}
+          </Typography>
+          <DialogContent>
+            <Typography>
+              {attacker.id} invades company controlled {defender.id}. The
+              attacking strength is {attackStrength}. Exhaust pieces in the{" "}
+              {attacker.controllingPresidency} army to mount defense, if the
+              newly-mounted pieces do not equal the attack strength the invasion
+              succeeds.
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => handleMainCrisisShowResults(true)}>
+              Invasion Defended
+            </Button>
+            <Button onClick={() => handleMainCrisisShowResults(false)}>
+              Invasion Successful
+            </Button>
+          </DialogActions>
+        </>
+      )}
+      {mainCrisisResolved && (
+        <>
+          <Typography>Rebellion in {activeRebellionRegion.id}</Typography>
+          <RebellionInCompanyControlled
+            rebellionStrength={getRebellionStrength()}
+            rebellingRegion={activeRebellionRegion}
+            setRebellionOutcome={handleRebellionResolution}
+          />
+        </>
+      )}
+    </>
   );
 };
-const EmpireInvadesCompany = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
+
+const InvasionToCompanyControlledResults = (props: {
+  invasionSuccessful: boolean;
   onOk: () => void;
+  invadedRegion: Region;
 }) => {
-  const attacker = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
-
-  const regionsWithUnrest = props.regions.filter(
-    (r) => r.status === RegionStatus.CompanyControlled && r.unrest > 0
-  );
-
-  if (!attacker || !defender) {
-    console.error("EventDialog: Attacked of defender not found!");
-    return;
+  if (props.invasionSuccessful) {
+    return (
+      <>
+        <DialogContent>
+          <Typography>Attack on {props.invadedRegion.id} successful</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={props.onOk}>ok</Button>
+        </DialogActions>
+      </>
+    );
+  } else {
+    return (
+      <>
+        <DialogContent>
+          <Typography>Attack on {props.invadedRegion.id} successful</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={props.onOk}>ok</Button>
+        </DialogActions>
+      </>
+    );
   }
-
-  const attackStrength =
-    calculateEmpireStrength(attacker.id, props.regions) +
-    props.event.strength +
-    defender.unrest;
-  return (
-    <Dialog open={true}>
-      <DialogTitle>
-        Event: Crisis, {props.elephant.MainRegion} invades{" "}
-        {props.elephant.TargetRegion}
-      </DialogTitle>
-      <DialogContent>
-        <Typography>
-          {attacker.id} invades company controlled {defender.id}. The attacking
-          strength is {attackStrength}. Exhaust pieces in the{" "}
-          {attacker.controllingPresidency} army to mount defense, if the
-          newly-mounted pieces do not equal the attack strength the invasion
-          succeeds.
-        </Typography>
-        {regionsWithUnrest.length > 0 && (
-          <Typography>
-            Invasion triggers rebellions across india: resolve rebellion in{" "}
-            {regionsWithUnrest.join(", ")}
-          </Typography>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
 };
+
 const CompanyControlledRebels = (props: {
   regions: Region[];
   elephant: Elephant;
   event: EventCard;
-  onOk: () => void;
+  handleConfirmResults: (rebellionResults: Rebellion[]) => void;
 }) => {
-  const attacker = props.regions.find(
+  const rebellingRegion = props.regions.find(
     (r) => r.id === props.elephant.MainRegion
   );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
-
   const regionsWithUnrest = props.regions.filter(
     (r) => r.status === RegionStatus.CompanyControlled && r.unrest > 0
   );
 
-  if (!attacker || !defender) {
-    console.error("EventDialog: Attacked of defender not found!");
+  if (!rebellingRegion) {
+    console.error(
+      "EventDialog: rebelling company controlled region not found!"
+    );
     return;
   }
 
-  const attackStrength = attacker.unrest + props.event.strength;
+  const [activeRebellionRegion, setActiveRebellionRegion] =
+    useState<Region>(rebellingRegion);
+  const [rebellionOutcomes, setRebellionOutcomes] = useState<Rebellion[]>([]);
+  const [rebellionIndex, setRebellionIndex] = useState<number>(0);
+
+  const handleRebellionResolution = (rebellionSuppressed: boolean) => {
+    setRebellionOutcomes([
+      ...rebellionOutcomes,
+      {
+        Region: activeRebellionRegion,
+        RebellionSuppressed: rebellionSuppressed,
+      },
+    ]);
+
+    if (rebellionIndex + 1 > regionsWithUnrest.length) {
+      props.handleConfirmResults(rebellionOutcomes);
+    } else {
+      setActiveRebellionRegion(regionsWithUnrest[rebellionIndex]);
+      setRebellionIndex(rebellionIndex + 1);
+    }
+  };
+
+  const getRebellionStrength = () => {
+    return rebellionIndex === -1
+      ? activeRebellionRegion.unrest + props.event.strength
+      : activeRebellionRegion.unrest;
+  };
   return (
-    <Dialog open={true}>
-      <DialogTitle>
-        Event: Crisis, Rebellion in ${props.elephant.MainRegion}
-      </DialogTitle>
-      <DialogContent>
-        <Typography>
-          {attacker.id} rebels against the Company. The attacking strength is{" "}
-          {attackStrength}. Exhaust pieces in the{" "}
-          {attacker.controllingPresidency} army to mount defense, if the
-          newly-mounted pieces do not equal the attack strength the rebellion
-          succeeds.
-        </Typography>
-        {regionsWithUnrest.length > 0 && (
-          <Typography>
-            Rebellion incites rebellions across other regions: resolve rebellion
-            in {regionsWithUnrest.join(", ")}
-          </Typography>
-        )}
-      </DialogContent>
-    </Dialog>
+    <>
+      <Typography>Rebellion in {activeRebellionRegion.id}</Typography>
+      <RebellionInCompanyControlled
+        rebellionStrength={getRebellionStrength()}
+        rebellingRegion={activeRebellionRegion}
+        setRebellionOutcome={handleRebellionResolution}
+      />
+    </>
   );
 };
