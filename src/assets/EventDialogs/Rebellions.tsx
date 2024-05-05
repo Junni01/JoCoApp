@@ -22,10 +22,11 @@ export const RebellionInCompanyControlled = (props: {
   };
 
   const handleRebellionResultConfirm = () => {
+    setShowResults(false);
     props.setRebellionOutcome(rebellionsSuppressed);
   };
 
-  if (showResults) {
+  if (!showResults) {
     return (
       <>
         <DialogContent>

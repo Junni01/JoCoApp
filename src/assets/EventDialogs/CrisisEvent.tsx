@@ -501,14 +501,18 @@ const IndiaInvadesCompany = (props: {
     (r) => r.id === props.elephant.TargetRegion
   );
 
-  const regionsWithUnrest = props.regions.filter(
-    (r) => r.status === RegionStatus.CompanyControlled && r.unrest > 0
-  );
-
   if (!attacker || !defender) {
     console.error("EventDialog: Attacked of defender not found!");
     return;
   }
+  const regionsWithUnrest = props.regions.filter(
+    (r) =>
+      r.status === RegionStatus.CompanyControlled &&
+      r.unrest > 0 &&
+      r.id !== defender.id
+  );
+
+  console.log("regions with unrest", regionsWithUnrest);
 
   const attackStrength = props.attackerIsEmpire
     ? calculateEmpireStrength(attacker.id, props.regions) +
@@ -523,7 +527,7 @@ const IndiaInvadesCompany = (props: {
   const [activeRebellionRegion, setActiveRebellionRegion] =
     useState<Region>(defender);
   const [rebellionOutcomes, setRebellionOutcomes] = useState<Rebellion[]>([]);
-  const [rebellionIndex, setRebellionIndex] = useState<number>(1);
+  const [rebellionIndex, setRebellionIndex] = useState<number>(0);
 
   const handleRebellionResolution = (rebellionSuppressed: boolean) => {
     setRebellionOutcomes([
@@ -534,11 +538,13 @@ const IndiaInvadesCompany = (props: {
       },
     ]);
 
-    if (rebellionIndex + 1 > regionsWithUnrest.length) {
+    const newRebellionIndex = rebellionIndex + 1;
+
+    if (newRebellionIndex === regionsWithUnrest.length) {
       props.onOk(mainCrisisWon, rebellionOutcomes);
     } else {
-      setActiveRebellionRegion(regionsWithUnrest[rebellionIndex]);
-      setRebellionIndex(rebellionIndex + 1);
+      setActiveRebellionRegion(regionsWithUnrest[newRebellionIndex]);
+      setRebellionIndex(newRebellionIndex);
     }
   };
 
@@ -547,57 +553,59 @@ const IndiaInvadesCompany = (props: {
   };
 
   const handleMainCrisisShowResults = (mainCrisisWon: boolean) => {
-    if (regionsWithUnrest.length === 0) {
-      props.onOk(mainCrisisWon, []);
-    } else {
-      setMainCrisisWon(mainCrisisWon);
-      setShowMainCrisisResults(true);
-    }
+    setMainCrisisWon(mainCrisisWon);
+    setShowMainCrisisResults(true);
   };
 
   const handleMainCrisisDone = () => {
     setShowMainCrisisResults(false);
     setMainCrisisResolved(true);
+
+    if (regionsWithUnrest.length === 0) {
+      props.onOk(mainCrisisWon, []);
+    } else {
+      setActiveRebellionRegion(regionsWithUnrest[0]);
+    }
   };
 
   return (
     <>
-      {!mainCrisisResolved && showMainCrisisResults ? (
-        <>
-          <Typography>
-            {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
-          </Typography>
-          <InvasionToCompanyControlledResults
-            invasionSuccessful={mainCrisisWon}
-            invadedRegion={defender}
-            onOk={handleMainCrisisDone}
-          />
-        </>
-      ) : (
-        <>
-          <Typography>
-            Event: Crisis, {props.elephant.MainRegion} invades{" "}
-            {props.elephant.TargetRegion}
-          </Typography>
-          <DialogContent>
+      {!mainCrisisResolved &&
+        (showMainCrisisResults ? (
+          <>
             <Typography>
-              {attacker.id} invades company controlled {defender.id}. The
-              attacking strength is {attackStrength}. Exhaust pieces in the{" "}
-              {attacker.controllingPresidency} army to mount defense, if the
-              newly-mounted pieces do not equal the attack strength the invasion
-              succeeds.
+              {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
             </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => handleMainCrisisShowResults(true)}>
-              Invasion Defended
-            </Button>
-            <Button onClick={() => handleMainCrisisShowResults(false)}>
-              Invasion Successful
-            </Button>
-          </DialogActions>
-        </>
-      )}
+            <InvasionToCompanyControlledResults
+              invasionSuccessful={mainCrisisWon}
+              invadedRegion={defender}
+              onOk={handleMainCrisisDone}
+            />
+          </>
+        ) : (
+          <>
+            <Typography>
+              {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+            </Typography>
+            <DialogContent>
+              <Typography>
+                {attacker.id} invades company controlled {defender.id}. The
+                attacking strength is {attackStrength}. Exhaust pieces in the{" "}
+                {attacker.controllingPresidency} army to mount defense, if the
+                newly-mounted pieces do not equal the attack strength the
+                invasion succeeds.
+              </Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={() => handleMainCrisisShowResults(true)}>
+                Invasion Defended
+              </Button>
+              <Button onClick={() => handleMainCrisisShowResults(false)}>
+                Invasion Successful
+              </Button>
+            </DialogActions>
+          </>
+        ))}
       {mainCrisisResolved && (
         <>
           <Typography>Rebellion in {activeRebellionRegion.id}</Typography>

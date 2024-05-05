@@ -509,7 +509,10 @@ function App() {
       return;
     }
     const newRegions = regions.filter(
-      (r) => r.id != attacker.id && r.id != defender.id && defenderDominator.id
+      (r) =>
+        r.id !== attacker.id &&
+        r.id !== defender.id &&
+        r.id !== defenderDominator.id
     );
 
     const attackStrength = attacker.towerLevel + (activeEvent?.strength ?? 0);
@@ -676,7 +679,7 @@ function App() {
       }
     } else {
       attacker.status = RegionStatus.EmpireCapital;
-      defender.status = RegionStatus.Sovereign;
+      defender.status = RegionStatus.Dominated;
       defender.controllingPresidency = undefined;
       defender.dominator = attacker.id;
       defender.towerLevel = 1;
@@ -705,8 +708,8 @@ function App() {
     const newRegionArray = regions.filter(
       (r) =>
         !rebellionRegions.includes(r) &&
-        r.id === attacker.id &&
-        r.id === defender.id
+        r.id !== attacker.id &&
+        r.id !== defender.id
     );
 
     setRegions([...newRegionArray, ...rebellionRegions, attacker, defender]);
@@ -734,14 +737,12 @@ function App() {
       if (attacker.towerLevel > 0) {
         attacker.towerLevel = attacker.towerLevel - 1;
       }
-      executeElephantsMarch(false);
     } else {
       defender.status = RegionStatus.Dominated;
       defender.dominator = attacker.id;
       defender.controllingPresidency = undefined;
       defender.towerLevel = 1;
       defender.unrest = 0;
-      executeElephantsMarch(true);
     }
 
     const rebellionRegions: Region[] = [];
@@ -766,8 +767,8 @@ function App() {
     const newRegionArray = regions.filter(
       (r) =>
         !rebellionRegions.includes(r) &&
-        r.id === attacker.id &&
-        r.id === defender.id
+        r.id !== attacker.id &&
+        r.id !== defender.id
     );
 
     setRegions([...newRegionArray, ...rebellionRegions, attacker, defender]);
