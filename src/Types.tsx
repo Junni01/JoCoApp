@@ -40,6 +40,7 @@ export enum CrisisType {
   EmpireInvadesCompany,
   CompanyControlledRebels,
   EmpireInvadesDominated,
+  EmpireCapitalInvadesEmpireCapital,
 }
 
 export enum RegionSymbol {

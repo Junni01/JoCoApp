@@ -7,7 +7,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Region, EventCard, RegionStatus, Rebellion } from "../../Types";
-import { doesEmpireShatter } from "../../Helpers";
+import { doesLossOfRegionCauseEmpireShatter } from "../../Helpers";
 import { useState } from "react";
 import { RebellionInCompanyControlled } from "./Rebellions";
 
@@ -65,7 +65,16 @@ export const LeaderEvent = (props: {
     }
   };
 
-  return <Dialog open={true}>{renderDialogContent()}</Dialog>;
+  return (
+    <Dialog
+      open={true}
+      PaperProps={{ sx: { ml: "1000px" } }}
+      hideBackdrop
+      draggable
+    >
+      {renderDialogContent()}
+    </Dialog>
+  );
 };
 
 const LeaderInSovereignAndCapital = (props: {
@@ -109,11 +118,15 @@ const LeaderInDominated = (props: {
 
   return (
     <>
-      <DialogTitle>Event: Leader in {props.drawStackRegion.id}.</DialogTitle>
+      <DialogTitle>
+        Event: Leader in {props.drawStackRegion.id}. (Strength:{" "}
+        {props.event.strength}, Symbol: {props.event.symbol.toString()}){" "}
+      </DialogTitle>
       <DialogContent>
         <Typography>
-          Rebellion in dominated {props.drawStackRegion.id} against the capital{" "}
-          {props.drawStackRegion.dominator}.
+          Rebellion in dominated {props.drawStackRegion.id} (strength:{" "}
+          {rebellionStrength}) against the capital{" "}
+          {props.drawStackRegion.dominator} (strength: {dominatorStrength}).
         </Typography>
         {rebellionSuccessful ? (
           <>
@@ -123,7 +136,10 @@ const LeaderInDominated = (props: {
               {props.drawStackRegion.id}. If all orders are already closed,
               perform a Cascade. The Region is now Sovereign.{" "}
             </Typography>
-            {doesEmpireShatter(props.drawStackRegion, props.regions) && (
+            {doesLossOfRegionCauseEmpireShatter(
+              props.drawStackRegion,
+              props.regions
+            ) && (
               <Typography>
                 {props.drawStackRegion.dominator} Empire shatters: Remove large
                 flag from {props.drawStackRegion.dominator}

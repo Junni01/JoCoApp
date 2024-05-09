@@ -29,7 +29,12 @@ export const PeaceEvent = (props: {
       (r) => r.id === props.elephant.TargetRegion
     );
     return (
-      <Dialog open={true}>
+      <Dialog
+        open={true}
+        PaperProps={{ sx: { ml: "1000px" } }}
+        hideBackdrop
+        draggable
+      >
         <DialogTitle>
           Event: Peace between <b>{props.elephant.MainRegion}</b> and{" "}
           <b>{props.elephant.TargetRegion}</b>
@@ -78,7 +83,12 @@ export const PeaceEvent = (props: {
     );
   } else {
     return (
-      <Dialog open={true}>
+      <Dialog
+        open={true}
+        PaperProps={{ sx: { ml: "1000px" } }}
+        hideBackdrop
+        draggable
+      >
         <DialogTitle>
           Event: Peace in <b>{props.elephant.MainRegion}</b>
         </DialogTitle>

@@ -20,7 +20,7 @@ import {
 } from "./Types";
 import {
   calculateEmpireStrength,
-  doesEmpireShatter,
+  doesLossOfRegionCauseEmpireShatter,
   getEmpireDominatedRegionIds,
 } from "./Helpers";
 import { useState } from "react";
@@ -413,7 +413,10 @@ const DeploySuccessfulResultDialog = (props: {
             empire flag. Replace with the Governor overlay. Move control token
             to associated presidency.
           </Typography>
-          {doesEmpireShatter(props.targetRegion, props.regions) && (
+          {doesLossOfRegionCauseEmpireShatter(
+            props.targetRegion,
+            props.regions
+          ) && (
             <Typography>
               {props.targetRegion.dominator} Empire shatters: Remove large flag
               from {props.targetRegion.dominator}

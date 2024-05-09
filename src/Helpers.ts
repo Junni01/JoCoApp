@@ -1,6 +1,7 @@
 import {
   CrisisType,
   Elephant,
+  EventCard,
   Region,
   RegionStatus,
   RegionSymbol,
@@ -20,7 +21,12 @@ export const calculateEmpireStrength = (
 
   if (region.status === RegionStatus.EmpireCapital) {
     strength += region.towerLevel;
+    console.log("empire base strength", strength);
+
     const dominatedRegions = regions.filter((r) => r.dominator === region.id);
+
+    console.log("dominated regions", dominatedRegions);
+
     dominatedRegions.forEach((r) => (strength += r.towerLevel));
     return strength;
   } else if (region.status === RegionStatus.Dominated) {
@@ -189,25 +195,36 @@ export const marchElephant = (
   } as Elephant;
 };
 
-export const doesEmpireShatter = (targetRegion: Region, regions: Region[]) => {
-  if (targetRegion.status === RegionStatus.EmpireCapital) {
+export const doesLossOfRegionCauseEmpireShatter = (
+  lostRegion: Region,
+  regions: Region[]
+) => {
+  if (lostRegion.status === RegionStatus.EmpireCapital) {
     return true;
   }
 
-  if (targetRegion.status === RegionStatus.Dominated) {
-    const empireCapital = regions.find((r) => r.id === targetRegion.dominator);
+  if (lostRegion.status === RegionStatus.Dominated) {
+    console.log("doesLossOfRegionCauseEmpireShatter: Dominated Region");
+    const empireCapital = regions.find((r) => r.id === lostRegion.dominator);
     if (!empireCapital) {
-      console.error("Empire Capital not found for Dominated Region");
+      console.error(
+        "doesLossOfRegionCauseEmpireShatter: Empire Capital not found for Dominated Region"
+      );
       return false;
     }
 
     const empireDominatedRegions = regions.filter(
-      (r) => r.dominator === empireCapital.id && r.id !== targetRegion.id
+      (r) => r.dominator === empireCapital.id && r.id !== lostRegion.id
     );
     if (empireDominatedRegions.length === 0) {
       return true;
+    } else {
+      return false;
     }
   }
+  console.error(
+    "doesLossOfRegionCauseEmpireShatter: Target region is not empire capital or dominated region"
+  );
   return false;
 };
 
@@ -216,57 +233,70 @@ export const getCrisisType = (elephant: Elephant, regions: Region[]) => {
   const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
   if (!attacker) {
-    console.error("EventDialog: Elephant main region not found!");
+    console.error("getCrisisType: Elephant main region not found!");
     return;
   }
 
   if (attacker.status === RegionStatus.CompanyControlled) {
+    if (defender) {
+      console.error(
+        "getCrisisType: Elephant main region is company controlled but elephant target region is not null!"
+      );
+      return;
+    }
     return CrisisType.CompanyControlledRebels;
-  } else if (
+  }
+
+  if (!defender) {
+    console.error(
+      "getCrisisType: elephant main region is not company controlled and elephant target region is null!"
+    );
+    return;
+  }
+
+  if (
     attacker.status === RegionStatus.Dominated &&
-    attacker.dominator === defender?.id
+    attacker.dominator === defender.id
   ) {
     return CrisisType.DominatedRebelsAgainstEmpire;
-  } else if (
-    (attacker.status === RegionStatus.EmpireCapital ||
-      attacker.status === RegionStatus.Dominated) &&
-    defender?.status === RegionStatus.CompanyControlled
-  ) {
-    return CrisisType.EmpireInvadesCompany;
-  } else if (
-    attacker.status === RegionStatus.Sovereign &&
-    defender?.status === RegionStatus.CompanyControlled
-  ) {
-    return CrisisType.SovereignInvadesCompany;
-  } else if (
-    (attacker.status === RegionStatus.EmpireCapital ||
-      attacker.status === RegionStatus.Dominated) &&
-    defender?.status === RegionStatus.Sovereign
-  ) {
-    return CrisisType.EmpireInvadesSovereign;
-  } else if (
-    attacker.status === RegionStatus.Sovereign &&
-    defender?.status === RegionStatus.EmpireCapital
-  ) {
-    return CrisisType.SovereignInvadesEmpireCapital;
-  } else if (
-    attacker.status === RegionStatus.Sovereign &&
-    defender?.status === RegionStatus.Dominated
-  ) {
-    return CrisisType.SovereignInvadesDominated;
-  } else if (
-    attacker.status === RegionStatus.Sovereign &&
-    defender?.status === RegionStatus.Sovereign
-  ) {
-    return CrisisType.SovereignInvadesSovereign;
-  } else if (
-    attacker.status === RegionStatus.EmpireCapital &&
-    defender?.status === RegionStatus.Dominated
-  ) {
-    return CrisisType.EmpireInvadesDominated;
-  } else {
-    console.error(
-      `Crisis type not found: ${attacker.status} - ${defender?.status}`
-    );
   }
+
+  switch (attacker.status) {
+    case RegionStatus.EmpireCapital:
+      if (defender.status === RegionStatus.CompanyControlled) {
+        return CrisisType.EmpireInvadesCompany;
+      } else if (defender.status === RegionStatus.Sovereign) {
+        return CrisisType.EmpireInvadesSovereign;
+      } else if (defender.status === RegionStatus.Dominated) {
+        return CrisisType.EmpireInvadesDominated;
+      } else if (defender.status === RegionStatus.EmpireCapital) {
+        return CrisisType.EmpireCapitalInvadesEmpireCapital;
+      }
+      break;
+
+    case RegionStatus.Sovereign:
+      if (defender.status === RegionStatus.CompanyControlled) {
+        return CrisisType.SovereignInvadesCompany;
+      } else if (defender.status === RegionStatus.EmpireCapital) {
+        return CrisisType.SovereignInvadesEmpireCapital;
+      } else if (defender.status === RegionStatus.Dominated) {
+        return CrisisType.SovereignInvadesDominated;
+      } else if (defender.status === RegionStatus.Sovereign) {
+        return CrisisType.SovereignInvadesSovereign;
+      }
+      break;
+
+    default:
+      console.error(
+        `Crisis type not found: ${attacker.status} - ${defender?.status}`
+      );
+  }
+};
+
+export const shuffleEventPile = (pile: EventCard[]) => {
+  for (let i = pile.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pile[i], pile[j]] = [pile[j], pile[i]];
+  }
+  return pile;
 };

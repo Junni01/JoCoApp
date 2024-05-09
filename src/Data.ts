@@ -1,3 +1,4 @@
+import { shuffleEventPile } from "./Helpers";
 import {
   Elephant,
   EventCard,
@@ -42,7 +43,9 @@ export const getElephantInitialPosition = (scenario: Scenario): Elephant => {
   }
 };
 
-export const getEventDeckData = () => {};
+export const getInitialEventDeck = () => {
+  return shuffleEventPile(EventDeck);
+};
 
 export const StormDie: StormDieFace[] = [
   { Sea: SeaZone.EastSea, EventNumber: 2 } as StormDieFace,

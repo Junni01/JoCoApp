@@ -9,7 +9,12 @@ import {
 
 export const ShuffleEvent = (props: { onOk: () => void }) => {
   return (
-    <Dialog open={true}>
+    <Dialog
+      open={true}
+      PaperProps={{ sx: { ml: "1000px" } }}
+      hideBackdrop
+      draggable
+    >
       <DialogTitle>Event: Shuffle</DialogTitle>
       <DialogContent>
         <Typography>

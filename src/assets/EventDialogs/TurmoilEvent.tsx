@@ -13,7 +13,12 @@ export const TurmoilEvent = (props: {
   onOk: () => void;
 }) => {
   return (
-    <Dialog open={true}>
+    <Dialog
+      open={true}
+      PaperProps={{ sx: { ml: "1000px" } }}
+      hideBackdrop
+      draggable
+    >
       <DialogTitle>Event: Turmoil in {props.drawStackRegion.id}</DialogTitle>
       <DialogContent>
         <Typography>

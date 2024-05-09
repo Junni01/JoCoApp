@@ -2,11 +2,11 @@ import {
   Box,
   Button,
   Card,
-  CardActions,
   CardContent,
   Container,
   Typography,
 } from "@mui/material";
+import Grid from "@mui/material/Unstable_Grid2";
 import {
   CrisisType,
   DeployType,
@@ -16,18 +16,24 @@ import {
   Presidency,
   Rebellion,
   Region,
+  RegionName,
   RegionStatus,
   Scenario,
 } from "./Types";
-import { EventDeck, getElephantInitialPosition, getRegionData } from "./Data";
+import {
+  getElephantInitialPosition,
+  getInitialEventDeck,
+  getRegionData,
+} from "./Data";
 import { useMemo, useState } from "react";
 import { DeployDialog } from "./DeployDialog";
 import { ModifyRegionDialog } from "./ModifyRegionDialog";
 import {
   calculateEmpireStrength,
-  doesEmpireShatter,
+  doesLossOfRegionCauseEmpireShatter,
   getCrisisType,
   marchElephant,
+  shuffleEventPile,
 } from "./Helpers";
 import { ShuffleEvent } from "./assets/EventDialogs/ShuffleEvent";
 import { WindfallEvent } from "./assets/EventDialogs/WindfallEvent";
@@ -35,7 +41,7 @@ import { TurmoilEvent } from "./assets/EventDialogs/TurmoilEvent";
 import { LeaderEvent } from "./assets/EventDialogs/LeaderEvent";
 import { PeaceEvent } from "./assets/EventDialogs/PeaceEvent";
 import { CrisisEvent } from "./assets/EventDialogs/CrisisEvent";
-import { act } from "react-dom/test-utils";
+import { RegionCard } from "./RegionCard";
 
 function App() {
   const scenario = Scenario.SeventeenTen;
@@ -44,30 +50,24 @@ function App() {
   const [elephant, setElephant] = useState<Elephant>(
     getElephantInitialPosition(scenario)
   );
-  const [eventDeck, setEvenDeck] = useState<EventCard[]>(EventDeck);
+  const [eventDeck, setEvenDeck] = useState<EventCard[]>(getInitialEventDeck());
   const [eventDiscardPile, setEventDiscardPile] = useState<EventCard[]>([]);
   const [showEventDialog, setShowEventDialog] = useState<boolean>(false);
   const [showDeployDialog, setShowDeployDialog] = useState<boolean>(false);
   const [showModifyRegionDialog, setShowModifyRegionDialog] =
     useState<boolean>(false);
   const [activeRegion, setActiveRegion] = useState<Region>();
-  const [activeEvent, setActiveEvent] = useState<EventCard | undefined>();
+  const [activeEvent, setActiveEvent] = useState<EventCard | undefined>(
+    undefined
+  );
   const [regionsLostCount, setRegionsLostCount] = useState<number>(0);
-
-  const shuffleEventPile = (pile: EventCard[]) => {
-    for (let i = pile.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [pile[i], pile[j]] = [pile[j], pile[i]];
-    }
-    return pile;
-  };
-
-  console.log(eventDeck);
 
   const mapRegions = useMemo(
     () => regions.sort((a, b) => a.index - b.index),
     [regions]
   );
+
+  console.log(eventDeck);
 
   const drawStackRegion =
     regions.find((r) => r.id === eventDeck[eventDeck.length - 1].Region) ??
@@ -78,9 +78,28 @@ function App() {
       console.error("Event Draw pile is empty! This should not happen");
       return;
     }
+
+    if (eventDeck.length === 1 && eventDeck[0].type !== EventType.Shuffle) {
+      console.error(
+        "Event Draw pile has only on card and it is not shuffle, This should not happen!"
+      );
+      return;
+    }
+
     const event = eventDeck.pop();
+
+    if (!event) {
+      console.error("drawEvent: Event deck is empty, it should not be");
+      return;
+    }
+
     setEvenDeck([...eventDeck]);
     setActiveEvent(event);
+
+    console.log(
+      `Event Drawn: ${event.type}, new region at the top of the draw stack is ${drawStackRegion.id}`
+    );
+
     setShowEventDialog(true);
   };
 
@@ -100,7 +119,10 @@ function App() {
     setEventDiscardPile([...discards]);
   };
 
-  const handleDeployButtonClick = (region: Region) => {
+  const handleDeployButtonClick = (region: Region | undefined) => {
+    if (!region) {
+      return;
+    }
     setActiveRegion(region);
     setShowDeployDialog(true);
   };
@@ -151,7 +173,7 @@ function App() {
       return;
     }
 
-    if (doesEmpireShatter(activeRegion, regions)) {
+    if (doesLossOfRegionCauseEmpireShatter(activeRegion, regions)) {
       dominator.status = RegionStatus.Sovereign;
     }
 
@@ -258,7 +280,10 @@ function App() {
     setShowDeployDialog(false);
   };
 
-  const handleModifyRegionClick = (region: Region) => {
+  const handleModifyRegionClick = (region: Region | undefined) => {
+    if (!region) {
+      return;
+    }
     setActiveRegion(region);
     setShowModifyRegionDialog(true);
   };
@@ -282,6 +307,15 @@ function App() {
       console.error("active event is undefined");
       return;
     }
+
+    let elephantsMarchExecuted: boolean = false;
+
+    if (eventDeck.length !== 0) {
+      console.log("Shuffle Event: Elephants March executed before shuffle");
+      executeElephantsMarch(false);
+      elephantsMarchExecuted = true;
+    }
+
     // Put shuffle event into the draw pile.
     events.push(shuffleEvent);
     // Shuffle the draw pile
@@ -296,6 +330,12 @@ function App() {
     setEventDiscardPile([]);
 
     setActiveEvent(undefined);
+
+    if (!elephantsMarchExecuted) {
+      console.log("Shuffle Event: Elephants March executed after shuffle");
+      executeElephantsMarch(false);
+    }
+
     setShowEventDialog(false);
   };
 
@@ -353,35 +393,38 @@ function App() {
     }
 
     if (drawStackRegion.status === RegionStatus.Dominated) {
+      const rebellingRegion = regions.find((r) => r.id === drawStackRegion.id);
       const dominator = regions.find((r) => r.id === drawStackRegion.dominator);
 
-      if (!dominator) {
-        console.error("Dominator for dominated region not found!");
+      if (!dominator || !rebellingRegion) {
+        console.error(
+          "executeLeaderEvent: rebelling region or Dominator for dominated region not found!"
+        );
         return;
       }
 
       const rebellionStrength =
-        drawStackRegion.towerLevel + (activeEvent?.strength ?? 0);
+        rebellingRegion.towerLevel + (activeEvent?.strength ?? 0);
       const dominatorStrength = dominator.towerLevel;
       const rebellionSuccessful = rebellionStrength > dominatorStrength;
 
       const newRegionArray = regions.filter(
-        (r) => r.id !== drawStackRegion.id && r.id !== dominator.id
+        (r) => r.id !== rebellingRegion.id && r.id !== dominator.id
       );
 
       if (rebellionSuccessful) {
-        drawStackRegion.status = RegionStatus.Sovereign;
-        drawStackRegion.dominator = undefined;
-        if (doesEmpireShatter(drawStackRegion, regions)) {
+        if (doesLossOfRegionCauseEmpireShatter(rebellingRegion, regions)) {
           dominator.status = RegionStatus.Sovereign;
         }
-        setRegions([...newRegionArray, drawStackRegion, dominator]);
+        rebellingRegion.status = RegionStatus.Sovereign;
+        rebellingRegion.dominator = undefined;
       } else {
         if (dominator.towerLevel > 0) {
           dominator.towerLevel = dominator.towerLevel - 1;
         }
-        setRegions([...newRegionArray, drawStackRegion, dominator]);
       }
+
+      setRegions([...newRegionArray, rebellingRegion, dominator]);
     }
 
     if (drawStackRegion.status === RegionStatus.CompanyControlled) {
@@ -447,6 +490,12 @@ function App() {
         break;
       case CrisisType.CompanyControlledRebels:
         executeCompanyControlledRebels(rebellions);
+        break;
+      case CrisisType.EmpireInvadesDominated:
+        executeEmpireInvadesDominated();
+        break;
+      case CrisisType.EmpireCapitalInvadesEmpireCapital:
+        executeEmpireCapitalInvadesEmpireCapital();
         break;
       default:
         console.error(
@@ -520,7 +569,7 @@ function App() {
     const actionSuccessful = attackStrength > defenseStrength;
 
     if (actionSuccessful) {
-      if (doesEmpireShatter(defender, regions)) {
+      if (doesLossOfRegionCauseEmpireShatter(defender, regions)) {
         defenderDominator.status = RegionStatus.Sovereign;
       }
       attacker.status = RegionStatus.EmpireCapital;
@@ -647,7 +696,7 @@ function App() {
     );
 
     if (actionSuccessful) {
-      if (doesEmpireShatter(attacker, regions)) {
+      if (doesLossOfRegionCauseEmpireShatter(attacker, regions)) {
         defender.status = RegionStatus.Sovereign;
       }
       attacker.status = RegionStatus.Sovereign;
@@ -808,6 +857,108 @@ function App() {
     executeElephantsMarch(false);
   };
 
+  const executeEmpireInvadesDominated = () => {
+    const attacker = regions.find((r) => r.id === elephant.MainRegion);
+    const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    const defenderDominator = regions.find((r) => r.id === defender.dominator);
+
+    if (!defenderDominator) {
+      console.error("EventDialog: Attacked of defender dominator not found!");
+      return;
+    }
+    const newRegions = regions.filter(
+      (r) =>
+        r.id !== attacker.id &&
+        r.id !== defender.id &&
+        r.id !== defenderDominator.id
+    );
+
+    const attackStrength =
+      calculateEmpireStrength(attacker.id, regions) +
+      (activeEvent?.strength ?? 0);
+    const defenseStrength = calculateEmpireStrength(defender.id, regions) ?? 0;
+    const actionSuccessful = attackStrength > defenseStrength;
+
+    if (actionSuccessful) {
+      if (doesLossOfRegionCauseEmpireShatter(defender, regions)) {
+        defenderDominator.status = RegionStatus.Sovereign;
+      }
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegions, attacker, defender, defenderDominator]);
+
+    if (actionSuccessful) {
+      executeElephantsMarch(true);
+    } else {
+      executeElephantsMarch(false);
+    }
+  };
+
+  const executeEmpireCapitalInvadesEmpireCapital = () => {
+    const attacker = regions.find((r) => r.id === elephant.MainRegion);
+    const defender = regions.find((r) => r.id === elephant.TargetRegion);
+
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    const defenderDominatedRegions = regions.filter(
+      (r) => r.dominator === defender.id
+    );
+
+    const newRegions = regions.filter(
+      (r) =>
+        r.id != attacker.id &&
+        r.id != defender.id &&
+        !defenderDominatedRegions.includes(r)
+    );
+
+    const attackStrength =
+      calculateEmpireStrength(attacker.id, regions) +
+      (activeEvent?.strength ?? 0);
+    const defenseStrength = calculateEmpireStrength(defender.id, regions) ?? 0;
+    const actionSuccessful = attackStrength > defenseStrength;
+
+    if (actionSuccessful) {
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+      defenderDominatedRegions.forEach((r) => {
+        r.dominator = undefined;
+        r.status = RegionStatus.Sovereign;
+      });
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+
+    setRegions([
+      ...newRegions,
+      attacker,
+      defender,
+      ...defenderDominatedRegions,
+    ]);
+
+    if (actionSuccessful) {
+      executeElephantsMarch(true);
+    } else {
+      executeElephantsMarch(false);
+    }
+  };
+
   const renderEventDialog = () => {
     if (!activeEvent) {
       return;
@@ -902,68 +1053,100 @@ function App() {
     setElephant(newElephant);
   };
 
-  return (
-    <Container>
-      <Box display={"flex"} flexWrap={"wrap"}>
-        {mapRegions.map((r) => {
-          return (
-            <Card key={r.id} sx={{ m: 2 }}>
-              <CardContent>
-                <Typography variant="h6">{r.id}</Typography>
-                <Typography>
-                  Status:
-                  {r.status === RegionStatus.Sovereign && "Sovereign"}
-                  {r.status === RegionStatus.Dominated &&
-                    `Dominated By ${r.dominator}`}
-                  {r.status === RegionStatus.EmpireCapital && "Empire Capital"}
-                  {r.status === RegionStatus.CompanyControlled &&
-                    `Company controlled by ${r.controllingPresidency}`}
-                </Typography>
-                {r.status !== RegionStatus.CompanyControlled && (
-                  <Typography>Tower Level: {r.towerLevel}</Typography>
-                )}
-                {r.lootAvailable && (
-                  <Typography>Loot: {r.lootAmount}</Typography>
-                )}
-                {r.unrest > 0 && <Typography>Unrest: {r.unrest}</Typography>}
-              </CardContent>
-              <CardActions>
-                <Button onClick={() => handleDeployButtonClick(r)}>
-                  Deploy
-                </Button>
-                <Button
-                  onClick={() => {
-                    handleModifyRegionClick(r);
-                  }}
-                >
-                  Modify Region
-                </Button>
-              </CardActions>
-            </Card>
-          );
-        })}
-      </Box>
-      <Box>
-        <Card>
-          Elephant
-          <CardContent>
-            {!elephant.TargetRegion ? (
-              <Typography>{elephant.MainRegion}</Typography>
-            ) : (
-              <Typography>
-                {elephant.MainRegion} {" -> "} {elephant.TargetRegion}
-              </Typography>
-            )}
-            <Typography>Top of Event Pile: {drawStackRegion?.id}</Typography>
-            <Typography>
-              Regions Lost: {regionsLostCount}
-              <Button onClick={() => setRegionsLostCount(0)}>Reset</Button>{" "}
-            </Typography>
+  const punjab = regions.find((r) => r.id === RegionName.Punjab) ?? regions[0];
+  const delhi = regions.find((r) => r.id === RegionName.Delhi) ?? regions[0];
+  const bengal = regions.find((r) => r.id === RegionName.Bengal) ?? regions[0];
+  const bombay = regions.find((r) => r.id === RegionName.Bombay) ?? regions[0];
+  const madras = regions.find((r) => r.id === RegionName.Madras) ?? regions[0];
+  const mysore = regions.find((r) => r.id === RegionName.Mysore) ?? regions[0];
+  const maratha =
+    regions.find((r) => r.id === RegionName.Maratha) ?? regions[0];
+  const hyderabad =
+    regions.find((r) => r.id === RegionName.Hyderabad) ?? regions[0];
 
-            <Button onClick={drawEvent}>Draw Event</Button>
-          </CardContent>
-        </Card>
-      </Box>
+  return (
+    <Container sx={{ bgcolor: "beige", m: 2 }} maxWidth="lg">
+      <Grid container spacing={2}>
+        <Grid xs={4}>
+          <RegionCard
+            region={punjab}
+            handleDeployButtonClick={handleDeployButtonClick}
+            handleModifyRegionClick={handleModifyRegionClick}
+          />
+        </Grid>
+        <Grid xs={4}>
+          <RegionCard
+            region={delhi}
+            handleDeployButtonClick={handleDeployButtonClick}
+            handleModifyRegionClick={handleModifyRegionClick}
+          />
+        </Grid>
+        <Grid xs={4}>
+          <RegionCard
+            region={bengal}
+            handleDeployButtonClick={handleDeployButtonClick}
+            handleModifyRegionClick={handleModifyRegionClick}
+          />
+        </Grid>
+
+        <Grid xs={4}>
+          <RegionCard
+            region={bombay}
+            handleDeployButtonClick={handleDeployButtonClick}
+            handleModifyRegionClick={handleModifyRegionClick}
+          />
+        </Grid>
+        <Grid xs={4}>
+          <RegionCard
+            region={hyderabad}
+            handleDeployButtonClick={handleDeployButtonClick}
+            handleModifyRegionClick={handleModifyRegionClick}
+          />
+        </Grid>
+        <Grid xs={4}>
+          <RegionCard
+            region={maratha}
+            handleDeployButtonClick={handleDeployButtonClick}
+            handleModifyRegionClick={handleModifyRegionClick}
+          />
+        </Grid>
+
+        <Grid xs={4}>
+          <RegionCard
+            region={mysore}
+            handleDeployButtonClick={handleDeployButtonClick}
+            handleModifyRegionClick={handleModifyRegionClick}
+          />
+        </Grid>
+        <Grid xs={4}>
+          <RegionCard
+            region={madras}
+            handleDeployButtonClick={handleDeployButtonClick}
+            handleModifyRegionClick={handleModifyRegionClick}
+          />
+        </Grid>
+      </Grid>
+
+      <Card>
+        Elephant
+        <CardContent>
+          {!elephant.TargetRegion ? (
+            <Typography>{elephant.MainRegion}</Typography>
+          ) : (
+            <Typography>
+              {elephant.MainRegion} {" -> "} {elephant.TargetRegion}
+            </Typography>
+          )}
+          <Typography>Top of Event Pile: {drawStackRegion?.id}</Typography>
+          <Typography>
+            Regions Lost: {regionsLostCount}
+            <Button onClick={() => setRegionsLostCount(0)}>Reset</Button>{" "}
+          </Typography>
+
+          <Button onClick={drawEvent}>Draw Event</Button>
+        </CardContent>
+      </Card>
+
       {showDeployDialog && (
         <DeployDialog
           onConfirmResults={handleDeployConfirm}

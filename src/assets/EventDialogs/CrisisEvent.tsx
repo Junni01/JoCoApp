@@ -8,7 +8,7 @@ import {
 } from "@mui/material";
 import {
   calculateEmpireStrength,
-  doesEmpireShatter,
+  doesLossOfRegionCauseEmpireShatter,
   getCrisisType,
   getEmpireDominatedRegionIds,
 } from "../../Helpers";
@@ -124,6 +124,15 @@ export const CrisisEvent = (props: {
             onOk={() => props.onOk(false, [])}
           />
         );
+      case CrisisType.EmpireCapitalInvadesEmpireCapital:
+        return (
+          <EmpireCapitalInvadesEmpireCapital
+            regions={props.regions}
+            elephant={props.elephant}
+            event={props.event}
+            onOk={() => props.onOk(false, [])}
+          />
+        );
 
       default:
         console.error(
@@ -133,7 +142,12 @@ export const CrisisEvent = (props: {
     }
   };
   return (
-    <Dialog open={true}>
+    <Dialog
+      open={true}
+      PaperProps={{ sx: { ml: "1000px" } }}
+      hideBackdrop
+      draggable={true}
+    >
       <DialogTitle>
         Event: Crisis (Strength: {props.event.strength}, Symbol:{" "}
         {props.event.symbol.toString()})
@@ -233,7 +247,7 @@ const SovereignInvadesDominated = (props: {
               empire flag on {attacker.id} and replace small empire flag on
               {defender?.id} with the new empire's flag.
             </Typography>
-            {doesEmpireShatter(defender, props.regions) && (
+            {doesLossOfRegionCauseEmpireShatter(defender, props.regions) && (
               <Typography>
                 {defender.dominator} Empire shatters: Remove large flag from{" "}
                 {defender.dominator}
@@ -406,12 +420,77 @@ const EmpireInvadesDominated = (props: {
               {attacker.id} successfully invades {defender?.id}. Place{" "}
               {attacker.id} empire's small flag on {defender.id}
             </Typography>
-            {doesEmpireShatter(defender, props.regions) && (
+            {doesLossOfRegionCauseEmpireShatter(defender, props.regions) && (
               <Typography>
                 {defender.dominator} Empire shatters: Remove large flag from{" "}
                 {defender.dominator}
               </Typography>
             )}
+          </>
+        ) : (
+          <Typography>
+            {attacker.id} fails to invade {defender?.id}.{" "}
+            {attacker.towerLevel > 0
+              ? `Remove one tower level from ${attacker.id}`
+              : ""}
+          </Typography>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={props.onOk}>Ok</Button>
+      </DialogActions>
+    </>
+  );
+};
+
+const EmpireCapitalInvadesEmpireCapital = (props: {
+  regions: Region[];
+  elephant: Elephant;
+  event: EventCard;
+  onOk: () => void;
+}) => {
+  const attacker = props.regions.find(
+    (r) => r.id === props.elephant.MainRegion
+  );
+  const defender = props.regions.find(
+    (r) => r.id === props.elephant.TargetRegion
+  );
+
+  if (!attacker || !defender) {
+    console.error("EventDialog: Attacked of defender not found!");
+    return;
+  }
+
+  const attackStrength =
+    (calculateEmpireStrength(attacker.id, props.regions) ?? 0) +
+    props.event.strength;
+  const defenseStrength =
+    calculateEmpireStrength(defender.id, props.regions) ?? 0;
+  const actionSuccessful = attackStrength > defenseStrength;
+  return (
+    <>
+      <DialogContent>
+        <Typography>
+          {props.elephant.MainRegion} Empire invades{" "}
+          {props.elephant.TargetRegion} Empire Capital
+        </Typography>
+        <Typography>
+          {attacker.id} Empire strength {attackStrength} against {defender.id}{" "}
+          empire strength {defenseStrength}
+        </Typography>
+        {actionSuccessful ? (
+          <>
+            <Typography>
+              {attacker.id} successfully invades {defender?.id}. Place{" "}
+              {attacker.id} empire's small flag on {defender.id}
+            </Typography>
+            <Typography>
+              {defender.id} Empire shatters: Remove large flag from{" "}
+              {defender.id} and remove small empire flags from:{" "}
+              {getEmpireDominatedRegionIds(defender.id, props.regions).join(
+                ","
+              )}
+            </Typography>
           </>
         ) : (
           <Typography>
@@ -462,15 +541,13 @@ const DominatedRebelsAgainstEmpire = (props: {
           <>
             <Typography>
               {attacker.id} successfully rebels against {defender?.id}. Remove{" "}
-              {attacker.id} empire's small flag from {defender.id}. It is now a
+              {defender.id} empire's small flag from {attacker.id}. It is now a
               Sovereign region.
             </Typography>
-            {doesEmpireShatter(attacker, props.regions) && (
-              <Typography>
-                {defender.dominator} Empire shatters: Remove large flag from{" "}
-                {defender.dominator}
-              </Typography>
-            )}
+            <Typography>
+              Close every open order in {attacker.id}. If all are already
+              closed, resolve a Cascade.
+            </Typography>
           </>
         ) : (
           <Typography>
