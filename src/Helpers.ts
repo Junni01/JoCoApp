@@ -2,7 +2,9 @@ import {
   CrisisType,
   Elephant,
   EventCard,
+  Presidency,
   Region,
+  RegionName,
   RegionStatus,
   RegionSymbol,
 } from "./Types";
@@ -299,4 +301,49 @@ export const shuffleEventPile = (pile: EventCard[]) => {
     [pile[i], pile[j]] = [pile[j], pile[i]];
   }
   return pile;
+};
+
+export const isValidDeployRegion = (
+  presidency: Presidency,
+  region: Region,
+  regions: Region[]
+) => {
+  console.log("isValidDeployRegion: ", presidency, region.id);
+
+  if (presidency === Presidency.BengalPresidency) {
+    if (region.id === RegionName.Bengal) {
+      return true;
+    }
+
+    if (region.id === RegionName.Madras || region.id === RegionName.Bombay) {
+      return false;
+    }
+  }
+
+  if (presidency === Presidency.MadrasPresidency) {
+    if (region.id === RegionName.Madras) {
+      return true;
+    }
+
+    if (region.id === RegionName.Bengal || region.id === RegionName.Bombay) {
+      return false;
+    }
+  }
+
+  if (presidency === Presidency.BombayPresidency) {
+    if (region.id === RegionName.Bombay) {
+      return true;
+    }
+
+    if (region.id === RegionName.Madras || region.id === RegionName.Bengal) {
+      return false;
+    }
+  }
+
+  const neighboringRegions = region.neighbors.map((n) =>
+    regions.find((r) => r.id === n.regionId)
+  );
+  return neighboringRegions.some(
+    (r) => r?.controllingPresidency === presidency
+  );
 };

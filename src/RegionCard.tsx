@@ -49,24 +49,22 @@ export const RegionCard = (props: RegionCardProps) => {
           <b>Status:</b> {renderRegionStatus()}
         </Typography>
 
-        <Typography>
-          {props.region.status === RegionStatus.CompanyControlled && (
-            <>
-              <Typography>
-                <b>Controlling Presidency:</b>
-              </Typography>
-              <Typography>{props.region.controllingPresidency}</Typography>
-            </>
-          )}
-          {props.region.status === RegionStatus.Dominated && (
-            <>
-              <Typography>
-                <b>Dominating Empire:</b>
-              </Typography>
-              <Typography>{props.region.dominator}</Typography>
-            </>
-          )}
-        </Typography>
+        {props.region.status === RegionStatus.CompanyControlled && (
+          <>
+            <Typography>
+              <b>Controlling Presidency:</b>
+            </Typography>
+            <Typography>{props.region.controllingPresidency}</Typography>
+          </>
+        )}
+        {props.region.status === RegionStatus.Dominated && (
+          <>
+            <Typography>
+              <b>Dominating Empire:</b>
+            </Typography>
+            <Typography>{props.region.dominator}</Typography>
+          </>
+        )}
 
         {props.region.status !== RegionStatus.CompanyControlled && (
           <Typography>

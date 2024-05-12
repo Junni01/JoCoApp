@@ -1,4 +1,3 @@
-import { shuffleEventPile } from "./Helpers";
 import {
   Elephant,
   EventCard,
@@ -17,9 +16,12 @@ export const getRegionData = (scenario: Scenario) => {
   switch (scenario) {
     case Scenario.SeventeenTen:
       return SeventeenTenRegions;
+    case Scenario.SeventeenFiftyEight:
+      return SeventeenFiftyEightRegions;
+    case Scenario.EighteenThirteen:
+      return EighteenThirteenRegions;
     default:
       return SeventeenTenRegions;
-      break;
   }
 };
 
@@ -44,7 +46,7 @@ export const getElephantInitialPosition = (scenario: Scenario): Elephant => {
 };
 
 export const getInitialEventDeck = () => {
-  return shuffleEventPile(EventDeck);
+  return EventDeck;
 };
 
 export const StormDie: StormDieFace[] = [

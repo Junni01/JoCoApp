@@ -190,7 +190,7 @@ const LeaderInCompanyControlled = (props: {
   };
 
   const getRebellionStrength = () => {
-    return rebellionIndex === -1
+    return rebellionIndex === 0
       ? activeRebellionRegion.unrest + props.event.strength
       : activeRebellionRegion.unrest;
   };

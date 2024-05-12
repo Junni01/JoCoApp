@@ -143,6 +143,7 @@ export const CrisisEvent = (props: {
   };
   return (
     <Dialog
+      maxWidth="xl"
       open={true}
       PaperProps={{ sx: { ml: "1000px" } }}
       hideBackdrop
@@ -770,7 +771,7 @@ const CompanyControlledRebels = (props: {
   };
 
   const getRebellionStrength = () => {
-    return rebellionIndex === -1
+    return rebellionIndex === 0
       ? activeRebellionRegion.unrest + props.event.strength
       : activeRebellionRegion.unrest;
   };

@@ -16,15 +16,18 @@ import {
   Elephant,
   Presidency,
   Region,
+  RegionName,
   RegionStatus,
 } from "./Types";
 import {
   calculateEmpireStrength,
   doesLossOfRegionCauseEmpireShatter,
   getEmpireDominatedRegionIds,
+  isValidDeployRegion,
 } from "./Helpers";
 import { useState } from "react";
 import { bengal, bombay, madras } from "./Data";
+import { DeployResult } from "./DeployResult";
 
 type DeployDialogProps = {
   targetRegion: Region | undefined;
@@ -73,19 +76,75 @@ export const DeployDialog = (props: DeployDialogProps) => {
   };
 
   const isDeployAllowed = () => {
+    if (!props.targetRegion) {
+      console.error("DeployDialog: Target region is undefined");
+      return false;
+    }
     if (targetRegion.status === RegionStatus.CompanyControlled) {
       return targetRegion.controllingPresidency === deployingPresidency;
     } else {
-      switch (deployingPresidency) {
-        case Presidency.BengalPresidency:
-          return targetRegion.id !== madras.id && targetRegion.id !== bombay.id;
+      return isValidDeployRegion(
+        deployingPresidency,
+        targetRegion,
+        props.regions
+      );
+    }
+  };
 
-        case Presidency.MadrasPresidency:
-          return targetRegion.id !== bengal.id && targetRegion.id !== bombay.id;
+  const isAnotherPresidentsHomeRegion = () => {
+    if (
+      targetRegion.id === RegionName.Bengal ||
+      targetRegion.id === RegionName.Bombay ||
+      targetRegion.id === RegionName.Madras
+    ) {
+      return true;
+    }
 
-        case Presidency.BombayPresidency:
-          return targetRegion.id !== madras.id && targetRegion.id !== bengal.id;
+    return false;
+  };
+
+  const deployNotAllowedMessage = (deployType: DeployType) => {
+    if (
+      deployType === DeployType.CompanyControlledWithUnrest ||
+      deployType === DeployType.CompanyControlledWithoutUnrest
+    ) {
+      if (props.targetRegion?.controllingPresidency !== deployingPresidency) {
+        return `This region is controlled by ${props.targetRegion?.controllingPresidency}, you are not allowed to deploy to another presidency's region`;
       }
+    } else {
+      if (isAnotherPresidentsHomeRegion()) {
+        return `You cannot deploy to another presidency's home region`;
+      }
+
+      if (!props.targetRegion) {
+        console.error("DeployDialog: Target region is undefined");
+        return "";
+      }
+
+      if (
+        !isValidDeployRegion(
+          deployingPresidency,
+          props.targetRegion,
+          props.regions
+        )
+      ) {
+        return `You cannot deploy to a region that is not adjacent to a region that is controlled by your presidency or is not your home region`;
+      }
+    }
+  };
+
+  const getResistanceStrength = () => {
+    switch (targetRegion.status) {
+      case RegionStatus.CompanyControlled:
+        return 0;
+      case RegionStatus.Sovereign:
+        return targetRegion.towerLevel;
+      case RegionStatus.Dominated:
+        return calculateEmpireStrength(targetRegion.id, props.regions);
+      case RegionStatus.EmpireCapital:
+        return calculateEmpireStrength(targetRegion.id, props.regions);
+      default:
+        return 0;
     }
   };
 
@@ -106,39 +165,11 @@ export const DeployDialog = (props: DeployDialogProps) => {
       <DialogTitle>Deploy to {props.targetRegion.id}</DialogTitle>
       <DialogContent>
         {showResults ? (
-          <>
-            <Typography>
-              Check for losses: Each player must roll a die for each of their
-              officers that were exhausted in this action (never regiments!).
-              For each 6 rolled, they must return one of their officers to their
-              supply.
-            </Typography>
-            {deploySuccess ? (
-              <>
-                <DeploySuccessfulResultDialog
-                  targetRegion={props.targetRegion}
-                  IsSuccess={deploySuccess}
-                  regions={props.regions}
-                  deployType={deployType}
-                />
-                {props.elephant.MainRegion === props.targetRegion.id &&
-                  !!props.elephant.TargetRegion && (
-                    <Typography>
-                      Elephant Redirect: Place elephant in the middle of{" "}
-                      {props.targetRegion.id}
-                    </Typography>
-                  )}
-              </>
-            ) : (
-              <>
-                <Typography>
-                  If the Deploy action is a catastrophic failure, first return
-                  half (rounding up) of your trophies to the supply and return
-                  the Commander to your supply.
-                </Typography>
-              </>
-            )}
-          </>
+          <DeployResult
+            targetRegion={props.targetRegion}
+            regions={props.regions}
+            deploySuccessful={deploySuccess}
+          />
         ) : (
           <>
             <FormControl>
@@ -166,12 +197,14 @@ export const DeployDialog = (props: DeployDialogProps) => {
                 />
               </RadioGroup>
             </FormControl>
-            <DeployDialogContent
-              deployType={deployType}
-              targetRegion={props.targetRegion}
-              regions={props.regions}
-              isDeployAllowed={isDeployAllowed()}
-            />
+            {!isDeployAllowed() ? (
+              <Typography>{deployNotAllowedMessage(deployType)}</Typography>
+            ) : (
+              <DeployDialogContent
+                deployType={deployType}
+                defenseStrength={getResistanceStrength()}
+              />
+            )}
           </>
         )}
       </DialogContent>
@@ -217,242 +250,74 @@ export const DeployDialog = (props: DeployDialogProps) => {
 
 const DeployDialogContent = (props: {
   deployType: DeployType;
-  targetRegion: Region;
-  regions: Region[];
-  isDeployAllowed: boolean;
+  defenseStrength: number;
 }) => {
   if (props.deployType === DeployType.CompanyControlledWithUnrest) {
     return (
       <>
-        {props.isDeployAllowed ? (
-          <>
-            <Typography>
-              Deploying to company controlled region with unrest tokens.
-            </Typography>
-            <Typography>
-              Exhaust troops to add to you dice pool, and make a check.
-            </Typography>
-          </>
-        ) : (
-          <Typography>
-            This presidency is not controlling this region, you cannot deploy to
-            another presidency's region
-          </Typography>
-        )}
+        <Typography>
+          Deploying to company controlled region with unrest tokens.
+        </Typography>
+        <Typography>
+          Exhaust troops to add to you dice pool, and make a check.
+        </Typography>
       </>
     );
   }
   if (props.deployType === DeployType.CompanyControlledWithoutUnrest) {
     return (
       <>
-        {props.isDeployAllowed ? (
-          <>
-            <Typography>
-              This is a company controlled region that has no unrest, you can
-              deploy if it has closed orders that you can open. Otherwise
-              deploying to this region is not allowed.
-            </Typography>
-            <Typography>
-              Exhaust troops to add to you dice pool, and make a check.
-            </Typography>
-          </>
-        ) : (
-          <Typography>
-            This presidency is not controlling this region, you cannot deploy to
-            another presidency's region
-          </Typography>
-        )}
+        <Typography>
+          This is a company controlled region that has no unrest, you can deploy
+          if it has closed orders that you can open. Otherwise deploying to this
+          region is not allowed.
+        </Typography>
+        <Typography>
+          Exhaust troops to add to you dice pool, and make a check.
+        </Typography>
       </>
     );
   }
   if (props.deployType === DeployType.Sovereign) {
     return (
       <>
-        {props.isDeployAllowed ? (
-          <>
-            <Typography>
-              This regions strength is {props.targetRegion.towerLevel}
-            </Typography>
-            <Typography>
-              Exhaust troops to add to you dice pool. Subtract{" "}
-              {props.targetRegion.towerLevel} dice from your pool and make a
-              check.
-            </Typography>
-          </>
-        ) : (
-          <Typography>
-            Deploying to another presidency's home region is not allowed
-          </Typography>
-        )}
+        <Typography>
+          This regions strength is {props.defenseStrength}
+        </Typography>
+        <Typography>
+          Exhaust troops to add to you dice pool. Subtract{" "}
+          {props.defenseStrength} dice from your pool and make a check.
+        </Typography>
       </>
     );
   }
 
   if (props.deployType === DeployType.Dominated) {
-    const totalStrength = calculateEmpireStrength(
-      props.targetRegion.id,
-      props.regions
-    );
     return (
       <>
-        {props.isDeployAllowed ? (
-          <>
-            <Typography>This Empire's strength is {totalStrength}</Typography>
-            <Typography>
-              Exhaust troops to add to you dice pool. Subtract {totalStrength}{" "}
-              dice from your pool and make a check.
-            </Typography>
-          </>
-        ) : (
-          <Typography>
-            Deploying to another presidency's home region is not allowed
-          </Typography>
-        )}
+        <Typography>
+          This Empire's strength is {props.defenseStrength}
+        </Typography>
+        <Typography>
+          Exhaust troops to add to you dice pool. Subtract{" "}
+          {props.defenseStrength} dice from your pool and make a check.
+        </Typography>
       </>
     );
   }
   if (props.deployType === DeployType.EmpireCapital) {
-    const totalStrength = calculateEmpireStrength(
-      props.targetRegion.id,
-      props.regions
-    );
     return (
       <>
-        {props.isDeployAllowed ? (
-          <>
-            <Typography>This Empire's strength is {totalStrength}</Typography>
-            <Typography>
-              Exhaust troops to add to you dice pool. Subtract {totalStrength}{" "}
-              dice from your pool and make a check.
-            </Typography>
-          </>
-        ) : (
-          <Typography>
-            Deploying to another presidency's home region is not allowed
-          </Typography>
-        )}
+        <Typography>
+          This Empire's strength is {props.defenseStrength}
+        </Typography>
+        <Typography>
+          Exhaust troops to add to you dice pool. Subtract{" "}
+          {props.defenseStrength} dice from your pool and make a check.
+        </Typography>
       </>
     );
   }
 };
 
-const DeploySuccessfulResultDialog = (props: {
-  targetRegion: Region;
-  regions: Region[];
-  IsSuccess: boolean;
-  deployType: DeployType;
-}) => {
-  const totalLoot =
-    props.targetRegion.towerLevel * 4 +
-    (props.targetRegion.lootAvailable ? props.targetRegion.lootAmount : 0);
-
-  switch (props.deployType) {
-    case DeployType.CompanyControlledWithUnrest:
-      return (
-        <>
-          <Typography>
-            Open all orders and remove unrest in the region
-          </Typography>
-          <Typography>
-            The loot amount is: number of officers used in this action that
-            survived + 1. Distribute the loot among those that participated and
-            survived in the Deploy action.
-          </Typography>
-        </>
-      );
-    case DeployType.CompanyControlledWithoutUnrest:
-      return (
-        <>
-          <Typography>Open all orders in the region</Typography>
-          <Typography>
-            The loot amount is: number of officers used in this action that
-            survived + 1. Distribute the loot among those that participated and
-            survived in the Deploy action.
-          </Typography>
-        </>
-      );
-    case DeployType.Sovereign:
-      return (
-        <>
-          <Typography>
-            Divide loot: the loot amount is {totalLoot}. (Loot minimum, if the
-            loot amount is less thant the number of officers that survived + 1,
-            increase it by the difference from the bank)
-          </Typography>
-          {props.targetRegion.towerLevel > 0 && (
-            <Typography>
-              {props.targetRegion.towerLevel === 1
-                ? "Take one trophy"
-                : `Take ${props.targetRegion.towerLevel} trophies`}
-            </Typography>
-          )}
-          <Typography>Impose order: Open all orders in the region</Typography>
-          <Typography>
-            Remove region tower and dome. Replace with the Governor overlay.
-            Move control token to associated presidency.
-          </Typography>
-        </>
-      );
-    case DeployType.Dominated:
-      return (
-        <>
-          <Typography>Deploy action Successful</Typography>
-          <Typography>
-            Divide loot: the loot amount is {totalLoot}. (Loot minimum, if the
-            loot amount is less thant the number of officers that survived + 1,
-            increase it by the difference from the bank)
-          </Typography>
-          {props.targetRegion.towerLevel > 0 && (
-            <Typography>
-              Take {props.targetRegion.towerLevel} trophies
-            </Typography>
-          )}
-          <Typography>Impose order: Open all orders in the region</Typography>
-          <Typography>
-            Remove region tower and dome. Remove {props.targetRegion.dominator}{" "}
-            empire flag. Replace with the Governor overlay. Move control token
-            to associated presidency.
-          </Typography>
-          {doesLossOfRegionCauseEmpireShatter(
-            props.targetRegion,
-            props.regions
-          ) && (
-            <Typography>
-              {props.targetRegion.dominator} Empire shatters: Remove large flag
-              from {props.targetRegion.dominator}
-            </Typography>
-          )}
-        </>
-      );
-    case DeployType.EmpireCapital:
-      return (
-        <>
-          <Typography>Deploy action Successful</Typography>
-          <Typography>
-            Divide loot: the loot amount is {totalLoot}. (Loot minimum, if the
-            loot amount is less thant the number of officers that survived + 1,
-            increase it by the difference from the bank)
-          </Typography>
-          {props.targetRegion.towerLevel > 0 && (
-            <Typography>
-              Take {props.targetRegion.towerLevel} trophies
-            </Typography>
-          )}
-          <Typography>Impose order: Open all orders in the region</Typography>
-          <Typography>
-            Remove region tower and dome. Remove capital flag and remove
-            empire's small flags from{" "}
-            {getEmpireDominatedRegionIds(
-              props.targetRegion.id,
-              props.regions
-            ).join(", ")}{" "}
-            . Replace with the Governor overlay. Move control token to
-            associated presidency.
-          </Typography>
-        </>
-      );
-    default:
-      return null;
-  }
-};
 export { DeployType };
