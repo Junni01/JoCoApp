@@ -5,8 +5,10 @@ import {
   CardActions,
   Button,
   Box,
+  IconButton,
 } from "@mui/material";
 import { Region, RegionStatus } from "./Types";
+import SettingsIcon from "@mui/icons-material/Settings";
 
 type RegionCardProps = {
   region: Region;
@@ -35,14 +37,13 @@ export const RegionCard = (props: RegionCardProps) => {
       <CardContent>
         <Box display="flex" justifyContent="space-between">
           <Typography variant="h6">{props.region.id}</Typography>
-          <Button
-            variant="contained"
+          <IconButton
             onClick={() => {
               props.handleModifyRegionClick(props.region);
             }}
           >
-            Modify
-          </Button>
+            <SettingsIcon />
+          </IconButton>
         </Box>
 
         <Typography>

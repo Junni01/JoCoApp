@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   Card,
   CardContent,
@@ -20,8 +21,8 @@ import {
   Scenario,
 } from "./Types";
 import { getElephantInitialPosition, getRegionData } from "./Data";
-import { useState } from "react";
-import { DeployDialog } from "./DeployDialog";
+import { useContext, useState } from "react";
+import { DeployDialog } from "./Deploy/DeployDialog";
 import { ModifyRegionDialog } from "./ModifyRegionDialog";
 import {
   calculateEmpireStrength,
@@ -30,13 +31,17 @@ import {
   marchElephant,
   shuffleEventPile,
 } from "./Helpers";
-import { ShuffleEvent } from "./assets/EventDialogs/ShuffleEvent";
-import { WindfallEvent } from "./assets/EventDialogs/WindfallEvent";
-import { TurmoilEvent } from "./assets/EventDialogs/TurmoilEvent";
-import { LeaderEvent } from "./assets/EventDialogs/LeaderEvent";
-import { PeaceEvent } from "./assets/EventDialogs/PeaceEvent";
-import { CrisisEvent } from "./assets/EventDialogs/CrisisEvent";
+import { ShuffleEvent } from "./EventDialogs/ShuffleEvent";
+import { WindfallEvent } from "./EventDialogs/WindfallEvent";
+import { TurmoilEvent } from "./EventDialogs/TurmoilEvent";
+import { LeaderEvent } from "./EventDialogs/LeaderEvent";
+import { PeaceEvent } from "./EventDialogs/PeaceEvent";
+import { CrisisEvent } from "./EventDialogs/CrisisEvent";
 import { RegionCard } from "./RegionCard";
+import { ElephantCard } from "./ElephantCard";
+import { GlobalEffectsDialog } from "./GlobalEffectsDialog";
+import { GlobalEffectsContext } from "./GlobalEffectsContext";
+import { ForeignInvasionEvent } from "./EventDialogs/ForeignInvasionEvent";
 
 export const IndiaMap = (props: {
   scenario: Scenario;
@@ -55,13 +60,16 @@ export const IndiaMap = (props: {
   const [eventDiscardPile, setEventDiscardPile] = useState<EventCard[]>([]);
   const [showEventDialog, setShowEventDialog] = useState<boolean>(false);
   const [showDeployDialog, setShowDeployDialog] = useState<boolean>(false);
+  const [showGlobalEffectsDialog, setShowGlobalEffectsDialog] =
+    useState<boolean>(false);
   const [showModifyRegionDialog, setShowModifyRegionDialog] =
     useState<boolean>(false);
   const [activeRegion, setActiveRegion] = useState<Region>();
   const [activeEvent, setActiveEvent] = useState<EventCard | undefined>(
     undefined
   );
-  const [regionsLostCount, setRegionsLostCount] = useState<number>(0);
+  const [eventsDrawn, setEventsDrawn] = useState<number>(0);
+  const globalEffectsContext = useContext(GlobalEffectsContext);
 
   console.log(eventDeck);
 
@@ -82,6 +90,7 @@ export const IndiaMap = (props: {
       return;
     }
 
+    setEventsDrawn(eventsDrawn + 1);
     const event = eventDeck.pop();
 
     if (!event) {
@@ -270,8 +279,9 @@ export const IndiaMap = (props: {
         default:
           console.error("DeployType not found");
       }
+      deployRedirectElephant();
     }
-    deployRedirectElephant();
+
     setActiveRegion(undefined);
     setShowDeployDialog(false);
   };
@@ -1006,7 +1016,16 @@ export const IndiaMap = (props: {
           />
         );
       case EventType.ForeignInvasion:
-        return <Typography>Foreign Invasion</Typography>;
+        return (
+          <ForeignInvasionEvent
+            onOk={handleEventDialogOk}
+            elephant={elephant}
+            regions={regions}
+            drawStackRegion={drawStackRegion}
+            setRegions={setRegions}
+            setElephant={setElephant}
+          />
+        );
 
       default:
         return;
@@ -1047,6 +1066,27 @@ export const IndiaMap = (props: {
       return;
     }
     setElephant(newElephant);
+  };
+
+  const addUnrestToAllCompanyControlledRegions = () => {
+    console.log("Adding 1 unrest to every Company controlled region");
+    const newRegions = [...regions];
+
+    for (const region of newRegions) {
+      if (region.status === RegionStatus.CompanyControlled) {
+        console.log(region.unrest);
+        region.unrest++;
+      }
+    }
+    setRegions(newRegions);
+  };
+
+  const handleResetCounters = () => {
+    setEventsDrawn(0);
+    globalEffectsContext.setGlobalEffects({
+      ...globalEffectsContext.globalEffects,
+      RegionsLost: 0,
+    });
   };
 
   const punjab = regions.find((r) => r.id === RegionName.Punjab) ?? regions[0];
@@ -1123,22 +1163,37 @@ export const IndiaMap = (props: {
         </Grid>
       </Grid>
       <>
+        <ElephantCard
+          elephant={elephant}
+          setElephant={setElephant}
+          regions={regions}
+        />
+
         <Card>
           <CardContent>
-            Elephant
-            {!elephant.TargetRegion ? (
-              <Typography>{elephant.MainRegion}</Typography>
-            ) : (
+            <Box
+              display={"flex"}
+              justifyContent={"space-evenly"}
+              alignItems={"center"}
+            >
+              <Typography>Top of Event Pile: {drawStackRegion?.id}</Typography>
               <Typography>
-                {elephant.MainRegion} {" -> "} {elephant.TargetRegion}
+                Regions Lost: {globalEffectsContext.globalEffects.RegionsLost}
+                Events Drawn: {eventsDrawn}
+                <Button onClick={() => handleResetCounters()}>
+                  Reset
+                </Button>{" "}
               </Typography>
-            )}
-            <Typography>Top of Event Pile: {drawStackRegion?.id}</Typography>
-            <Typography>
-              Regions Lost: {regionsLostCount}
-              <Button onClick={() => setRegionsLostCount(0)}>Reset</Button>{" "}
-            </Typography>
-            <Button onClick={drawEvent}>Draw Event</Button>
+              <Button onClick={drawEvent}>Draw Event</Button>
+
+              <Button onClick={() => setShowGlobalEffectsDialog(true)}>
+                Adjust Laws & Global Effects
+              </Button>
+
+              <Button onClick={addUnrestToAllCompanyControlledRegions}>
+                Add 1 unrest to every Company controlled regions
+              </Button>
+            </Box>
           </CardContent>
         </Card>
       </>
@@ -1160,6 +1215,11 @@ export const IndiaMap = (props: {
         />
       )}
       {showEventDialog && activeEvent && renderEventDialog()}
+      {showGlobalEffectsDialog && (
+        <GlobalEffectsDialog
+          onClose={() => setShowGlobalEffectsDialog(false)}
+        />
+      )}
     </Container>
   );
 };

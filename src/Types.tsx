@@ -114,3 +114,10 @@ export type Rebellion = {
   Region: Region;
   RebellionSuppressed: boolean;
 };
+
+export type GlobalEffects = {
+  TreasureReform: boolean;
+  SepoyRecruitment: boolean;
+  GovernorGeneral: boolean;
+  RegionsLost: number;
+};

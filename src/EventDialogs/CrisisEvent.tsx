@@ -11,7 +11,7 @@ import {
   doesLossOfRegionCauseEmpireShatter,
   getCrisisType,
   getEmpireDominatedRegionIds,
-} from "../../Helpers";
+} from "../Helpers";
 import {
   Region,
   Elephant,
@@ -19,9 +19,10 @@ import {
   RegionStatus,
   CrisisType,
   Rebellion,
-} from "../../Types";
-import { useState } from "react";
+} from "../Types";
+import { useContext, useState } from "react";
 import { RebellionInCompanyControlled } from "./Rebellions";
+import { GlobalEffectsContext } from "../GlobalEffectsContext";
 
 export const CrisisEvent = (props: {
   regions: Region[];
@@ -112,7 +113,7 @@ export const CrisisEvent = (props: {
             regions={props.regions}
             elephant={props.elephant}
             event={props.event}
-            handleConfirmResults={() => handleCompanyControlledRebels}
+            handleConfirmResults={handleCompanyControlledRebels}
           />
         );
       case CrisisType.EmpireInvadesDominated:
@@ -572,6 +573,8 @@ const IndiaInvadesCompany = (props: {
   attackerIsEmpire: boolean;
   onOk: (mainCrisisWon: boolean, rebellionResults: Rebellion[]) => void;
 }) => {
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+
   const attacker = props.regions.find(
     (r) => r.id === props.elephant.MainRegion
   );
@@ -592,11 +595,15 @@ const IndiaInvadesCompany = (props: {
 
   console.log("regions with unrest", regionsWithUnrest);
 
+  const unrestStrength = globalEffectsContext.globalEffects.SepoyRecruitment
+    ? defender.unrest * 2
+    : defender.unrest;
+
   const attackStrength = props.attackerIsEmpire
     ? calculateEmpireStrength(attacker.id, props.regions) +
       props.event.strength +
-      defender.unrest
-    : attacker.towerLevel + props.event.strength + defender.unrest;
+      unrestStrength
+    : attacker.towerLevel + props.event.strength + unrestStrength;
 
   const [mainCrisisWon, setMainCrisisWon] = useState<boolean>(false);
   const [mainCrisisResolved, setMainCrisisResolved] = useState<boolean>(false);
@@ -627,10 +634,19 @@ const IndiaInvadesCompany = (props: {
   };
 
   const getRebellionStrength = () => {
-    return activeRebellionRegion.unrest;
+    return globalEffectsContext.globalEffects.SepoyRecruitment
+      ? activeRebellionRegion.unrest * 2
+      : activeRebellionRegion.unrest;
   };
 
   const handleMainCrisisShowResults = (mainCrisisWon: boolean) => {
+    if (!mainCrisisWon) {
+      globalEffectsContext.setGlobalEffects({
+        ...globalEffectsContext.globalEffects,
+        RegionsLost: globalEffectsContext.globalEffects.RegionsLost + 1,
+      });
+    }
+
     setMainCrisisWon(mainCrisisWon);
     setShowMainCrisisResults(true);
   };
@@ -738,7 +754,10 @@ const CompanyControlledRebels = (props: {
     (r) => r.id === props.elephant.MainRegion
   );
   const regionsWithUnrest = props.regions.filter(
-    (r) => r.status === RegionStatus.CompanyControlled && r.unrest > 0
+    (r) =>
+      r.status === RegionStatus.CompanyControlled &&
+      r.unrest > 0 &&
+      r.id !== rebellingRegion?.id
   );
 
   if (!rebellingRegion) {
@@ -748,12 +767,21 @@ const CompanyControlledRebels = (props: {
     return;
   }
 
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+
   const [activeRebellionRegion, setActiveRebellionRegion] =
     useState<Region>(rebellingRegion);
   const [rebellionOutcomes, setRebellionOutcomes] = useState<Rebellion[]>([]);
   const [rebellionIndex, setRebellionIndex] = useState<number>(0);
 
   const handleRebellionResolution = (rebellionSuppressed: boolean) => {
+    if (!rebellionSuppressed) {
+      globalEffectsContext.setGlobalEffects({
+        ...globalEffectsContext.globalEffects,
+        RegionsLost: globalEffectsContext.globalEffects.RegionsLost + 1,
+      });
+    }
+
     setRebellionOutcomes([
       ...rebellionOutcomes,
       {
@@ -762,7 +790,10 @@ const CompanyControlledRebels = (props: {
       },
     ]);
 
+    console.log("rebellionIndex", rebellionIndex);
+    console.log("regionsWithUnrest.length", regionsWithUnrest.length);
     if (rebellionIndex + 1 > regionsWithUnrest.length) {
+      console.log("what");
       props.handleConfirmResults(rebellionOutcomes);
     } else {
       setActiveRebellionRegion(regionsWithUnrest[rebellionIndex]);
@@ -771,9 +802,13 @@ const CompanyControlledRebels = (props: {
   };
 
   const getRebellionStrength = () => {
-    return rebellionIndex === 0
-      ? activeRebellionRegion.unrest + props.event.strength
+    const unrestStrength = globalEffectsContext.globalEffects.SepoyRecruitment
+      ? activeRebellionRegion.unrest * 2
       : activeRebellionRegion.unrest;
+
+    return rebellionIndex === 0
+      ? unrestStrength + props.event.strength
+      : unrestStrength;
   };
   return (
     <>

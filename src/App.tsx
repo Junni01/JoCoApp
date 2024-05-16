@@ -13,6 +13,7 @@ import { Scenario } from "./Types";
 import { useState } from "react";
 import { getInitialEventDeck } from "./Data";
 import { shuffleEventPile } from "./Helpers";
+import { GlobalEffectsProvider } from "./GlobalEffectsContext";
 
 function App() {
   const [SetupDialogOpen, setSetupDialogOpen] = useState(true);
@@ -29,7 +30,9 @@ function App() {
   return (
     <>
       {!SetupDialogOpen && (
-        <IndiaMap scenario={scenario} initialEventDeck={shuffledEventDeck} />
+        <GlobalEffectsProvider>
+          <IndiaMap scenario={scenario} initialEventDeck={shuffledEventDeck} />
+        </GlobalEffectsProvider>
       )}
       {SetupDialogOpen && (
         <Dialog open={true}>

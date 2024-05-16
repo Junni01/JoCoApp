@@ -6,7 +6,7 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
-import { Region } from "../../Types";
+import { Region } from "../Types";
 
 export const TurmoilEvent = (props: {
   drawStackRegion: Region;

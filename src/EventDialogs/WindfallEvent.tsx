@@ -5,8 +5,8 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
-import { Region } from "../../Types";
-import { EventDialog } from "../../DialogStyles";
+import { Region } from "../Types";
+import { EventDialog } from "../DialogStyles";
 
 export const WindfallEvent = (props: {
   drawStackRegion: Region;

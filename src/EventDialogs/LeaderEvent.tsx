@@ -6,10 +6,11 @@ import {
   DialogTitle,
   Typography,
 } from "@mui/material";
-import { Region, EventCard, RegionStatus, Rebellion } from "../../Types";
-import { doesLossOfRegionCauseEmpireShatter } from "../../Helpers";
-import { useState } from "react";
+import { Region, EventCard, RegionStatus, Rebellion } from "../Types";
+import { doesLossOfRegionCauseEmpireShatter } from "../Helpers";
+import { useContext, useState } from "react";
 import { RebellionInCompanyControlled } from "./Rebellions";
+import { GlobalEffectsContext } from "../GlobalEffectsContext";
 
 export const LeaderEvent = (props: {
   drawStackRegion: Region;
@@ -118,10 +119,7 @@ const LeaderInDominated = (props: {
 
   return (
     <>
-      <DialogTitle>
-        Event: Leader in {props.drawStackRegion.id}. (Strength:{" "}
-        {props.event.strength}, Symbol: {props.event.symbol.toString()}){" "}
-      </DialogTitle>
+      <DialogTitle>Event: Leader in {props.mainRegionName}.</DialogTitle>
       <DialogContent>
         <Typography>
           Rebellion in dominated {props.drawStackRegion.id} (strength:{" "}
@@ -166,6 +164,8 @@ const LeaderInCompanyControlled = (props: {
   additionalCrises: Region[];
   handleConfirmResults: (rebellionResults: Rebellion[]) => void;
 }) => {
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+
   const [activeRebellionRegion, setActiveRebellionRegion] = useState<Region>(
     props.drawStackRegion
   );
@@ -173,6 +173,13 @@ const LeaderInCompanyControlled = (props: {
   const [rebellionIndex, setRebellionIndex] = useState<number>(0);
 
   const handleRebellionResolution = (rebellionSuppressed: boolean) => {
+    if (!rebellionSuppressed) {
+      globalEffectsContext.setGlobalEffects({
+        ...globalEffectsContext.globalEffects,
+        RegionsLost: globalEffectsContext.globalEffects.RegionsLost + 1,
+      });
+    }
+
     setRebellionOutcomes([
       ...rebellionOutcomes,
       {
@@ -190,14 +197,21 @@ const LeaderInCompanyControlled = (props: {
   };
 
   const getRebellionStrength = () => {
-    return rebellionIndex === 0
-      ? activeRebellionRegion.unrest + props.event.strength
+    const unrestStrength = globalEffectsContext.globalEffects.SepoyRecruitment
+      ? activeRebellionRegion.unrest * 2
       : activeRebellionRegion.unrest;
+    return rebellionIndex === 0
+      ? unrestStrength + props.event.strength
+      : unrestStrength;
   };
 
   return (
     <>
-      <DialogTitle>Event: Leader in {props.drawStackRegion.id}.</DialogTitle>
+      <DialogTitle>
+        {" "}
+        Event: Leader in {props.drawStackRegion.id}. (Strength:{" "}
+        {props.event.strength}, Symbol: {props.event.symbol.toString()}){" "}
+      </DialogTitle>
       <RebellionInCompanyControlled
         rebellionStrength={getRebellionStrength()}
         rebellingRegion={activeRebellionRegion}

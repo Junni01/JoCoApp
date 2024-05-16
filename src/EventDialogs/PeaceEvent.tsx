@@ -8,8 +8,8 @@ import {
   ListItem,
   Typography,
 } from "@mui/material";
-import { marchElephant } from "../../Helpers";
-import { Region, EventCard, Elephant, RegionStatus } from "../../Types";
+import { marchElephant } from "../Helpers";
+import { Region, EventCard, Elephant, RegionStatus } from "../Types";
 
 export const PeaceEvent = (props: {
   drawStackRegion: Region;

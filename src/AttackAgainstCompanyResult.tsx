@@ -1,5 +1,7 @@
 import { List, ListItem, Typography } from "@mui/material";
 import { Presidency, Region, RegionStatus } from "./Types";
+import { GlobalEffectsContext } from "./GlobalEffectsContext";
+import { useContext } from "react";
 
 type AttackAgainstCompanyResultProps = {
   attackSuccessful: boolean;
@@ -12,6 +14,7 @@ type AttackAgainstCompanyResultProps = {
 export const AttackAgainstCompanyResult = (
   props: AttackAgainstCompanyResultProps
 ) => {
+  const globalEffectsContext = useContext(GlobalEffectsContext);
   if (props.attackSuccessful) {
     return (
       <>
@@ -33,23 +36,32 @@ export const AttackAgainstCompanyResult = (
           </ListItem>
           <ListItem>
             <b>Officer Rout:</b> Roll a die for every officer in{" "}
-            {props.controllingPresidency} Army and remove it if the rol is a 6
+            {props.controllingPresidency} Army and remove it if the roll is a 6
           </ListItem>
-          <ListItem>
-            <b>Governor Elimination:</b> If this region has a Governor, return
-            it to the unused offices stack and return the officeholder's family
-            member to that player's supply.{" "}
-          </ListItem>
-          <ListItem>
-            <b>Restore Local Authority:</b> Remove the governor overlay, any
-            Company ship, and any unrest in the region, and place a dome back in
-            the region with one tower level.
-          </ListItem>
+          {globalEffectsContext.globalEffects.GovernorGeneral ? (
+            <ListItem>
+              <b>Restore Local Authority:</b> Place a dome back in the region
+              with one tower level.
+            </ListItem>
+          ) : (
+            <>
+              <ListItem>
+                <b>Governor Elimination:</b> If this region has a Governor,
+                return it to the unused offices stack and return the
+                officeholder's family member to that player's supply.{" "}
+              </ListItem>
+              <ListItem>
+                <b>Restore Local Authority:</b> Remove the governor overlay, any
+                Company ship, and any unrest in the region, and place a dome
+                back in the region with one tower level.
+              </ListItem>
+            </>
+          )}
           {props.isInvasion &&
             props.invadingRegion &&
             props.invadingRegion.status === RegionStatus.Sovereign && (
               <ListItem>
-                <b>Create New Empire: </b> Place large flag with start on{" "}
+                <b>Create New Empire: </b> Place large flag with star on{" "}
                 {props.invadingRegion.id}
               </ListItem>
             )}
@@ -65,7 +77,8 @@ export const AttackAgainstCompanyResult = (
           </ListItem>
           <ListItem>
             <b>Company Humiliation:</b> Lower the Company's Standing by one to
-            the left for each region lost this turn.
+            the left for each region lost this turn. (lower standing by{" "}
+            {1 + globalEffectsContext.globalEffects.RegionsLost})
           </ListItem>
         </List>
       </>

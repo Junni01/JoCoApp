@@ -7,8 +7,8 @@ import {
   List,
 } from "@mui/material";
 import { useState } from "react";
-import { Region } from "../../Types";
-import { AttackAgainstCompanyResult } from "../../AttackAgainstCompanyResult";
+import { Region } from "../Types";
+import { AttackAgainstCompanyResult } from "../AttackAgainstCompanyResult";
 
 export const RebellionInCompanyControlled = (props: {
   rebellionStrength: number;
