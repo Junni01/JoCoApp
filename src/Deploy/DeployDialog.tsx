@@ -267,6 +267,7 @@ export const DeployDialog = (props: DeployDialogProps) => {
           <>
             <DialogContent>
               <DeployResult
+                deployingPresidency={deployingPresidency}
                 targetRegion={props.targetRegion}
                 regions={props.regions}
                 deploySuccessful={deploySuccess}

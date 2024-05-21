@@ -1,17 +1,19 @@
-import { List, ListItem, Typography } from "@mui/material";
-import { Elephant, Region, RegionStatus } from "../Types";
+import { List, ListItem, ListItemIcon, Typography } from "@mui/material";
+import { Elephant, Presidency, Region, RegionStatus } from "../Types";
 import {
   doesLossOfRegionCauseEmpireShatter,
   getEmpireDominatedRegionIds,
 } from "../Helpers";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
 import { useContext } from "react";
+import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
 
 type DeployResultProps = {
   targetRegion: Region | undefined;
   regions: Region[];
   deploySuccessful: boolean;
   elephant: Elephant;
+  deployingPresidency: Presidency;
 };
 
 export const DeployResult = (props: DeployResultProps) => {
@@ -81,14 +83,10 @@ export const DeployResult = (props: DeployResultProps) => {
           )}
           {props.targetRegion.status !== RegionStatus.CompanyControlled &&
             props.targetRegion.towerLevel > 0 && (
-              <ListItem>
-                <Typography>
-                  <b>Take Trophies:</b> Commander of the Army receives{" "}
-                  {props.targetRegion.towerLevel === 1
-                    ? "1 Trophy token"
-                    : `${props.targetRegion.towerLevel} Trophy tokens`}
-                </Typography>
-              </ListItem>
+              <TakeTrophiesItem
+                trophyCount={props.targetRegion.towerLevel}
+                attackingPresidency={props.deployingPresidency}
+              />
             )}
           <ListItem>
             <Typography>
@@ -102,42 +100,16 @@ export const DeployResult = (props: DeployResultProps) => {
           {props.targetRegion.status !== RegionStatus.CompanyControlled && (
             <>
               {props.targetRegion.status === RegionStatus.Dominated && (
-                <>
-                  <ListItem>
-                    <Typography>
-                      <b>Remove Empire flags:</b> Remove{" "}
-                      {props.targetRegion.dominator}'s empire flag from{" "}
-                      {props.targetRegion.id}
-                    </Typography>
-                  </ListItem>
-                  {doesLossOfRegionCauseEmpireShatter(
-                    props.targetRegion,
-                    props.regions
-                  ) && (
-                    <ListItem>
-                      <Typography>
-                        <b>Empire Decline:</b> {props.targetRegion.dominator}{" "}
-                        Empire has no dominated regions. Remove Large empire
-                        flag from {props.targetRegion.dominator}
-                      </Typography>
-                    </ListItem>
-                  )}
-                </>
+                <RemoveEmpireFlagsItem
+                  targetRegion={props.targetRegion}
+                  regions={props.regions}
+                />
               )}
               {props.targetRegion.status === RegionStatus.EmpireCapital && (
-                <>
-                  <ListItem>
-                    <Typography>
-                      <b>Shattered Empire:</b> Remove large flag from{" "}
-                      {props.targetRegion.id} and then remove{" "}
-                      {props.targetRegion.id}'s empire small flags from{" "}
-                      {getEmpireDominatedRegionIds(
-                        props.targetRegion.id,
-                        props.regions
-                      ).join(", ")}
-                    </Typography>
-                  </ListItem>
-                </>
+                <EmpireShattersItem
+                  empireName={props.targetRegion.dominator ?? ""}
+                  regions={props.regions}
+                />
               )}
               {globalEffectsContext.globalEffects.GovernorGeneral ? (
                 <ListItem>
@@ -199,4 +171,69 @@ export const DeployResult = (props: DeployResultProps) => {
       </>
     );
   }
+};
+
+export const TakeTrophiesItem = (props: {
+  trophyCount: number;
+  attackingPresidency: Presidency;
+}) => {
+  return (
+    <ListItem>
+      <ListItemIcon>
+        <MilitaryTechIcon />
+      </ListItemIcon>
+      <Typography>
+        <b>Take Trophies:</b> Commander of the {props.attackingPresidency} Army
+        receives{" "}
+        {props.trophyCount === 1
+          ? "1 Trophy token"
+          : `${props.trophyCount} Trophy tokens`}
+      </Typography>
+    </ListItem>
+  );
+};
+
+export const EmpireShattersItem = (props: {
+  empireName: string;
+  regions: Region[];
+}) => {
+  return (
+    <ListItem>
+      <Typography>
+        <b>Shattered Empire:</b> Remove large flag from {props.empireName} and
+        then remove {props.empireName}'s empire small flags from{" "}
+        {getEmpireDominatedRegionIds(props.empireName, props.regions).join(
+          ", "
+        )}
+      </Typography>
+    </ListItem>
+  );
+};
+
+export const RemoveEmpireFlagsItem = (props: {
+  targetRegion: Region;
+  regions: Region[];
+}) => {
+  return (
+    <>
+      <ListItem>
+        <Typography>
+          <b>Remove Empire flags:</b> Remove {props.targetRegion.dominator}'s
+          empire flag from {props.targetRegion.id}
+        </Typography>
+      </ListItem>
+      {doesLossOfRegionCauseEmpireShatter(
+        props.targetRegion,
+        props.regions
+      ) && (
+        <ListItem>
+          <Typography>
+            <b>Empire Decline:</b> {props.targetRegion.dominator} Empire has no
+            dominated regions. Remove Large empire flag from{" "}
+            {props.targetRegion.dominator}
+          </Typography>
+        </ListItem>
+      )}
+    </>
+  );
 };

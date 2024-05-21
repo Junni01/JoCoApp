@@ -1,6 +1,7 @@
 import {
   Button,
   Dialog,
+  DialogActions,
   DialogContent,
   FormControl,
   FormControlLabel,
@@ -62,13 +63,16 @@ function App() {
                 />
               </RadioGroup>
             </FormControl>
-            <Button
-              onClick={() => {
-                setSetupDialogOpen(false);
-              }}
-            >
-              Start Game
-            </Button>
+            <DialogActions>
+              <Button
+                variant="contained"
+                onClick={() => {
+                  setSetupDialogOpen(false);
+                }}
+              >
+                Start Game
+              </Button>
+            </DialogActions>
           </DialogContent>
         </Dialog>
       )}
