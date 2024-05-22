@@ -23,6 +23,7 @@ import {
 import { useContext, useState } from "react";
 import { RebellionInCompanyControlled } from "./Rebellions";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
+import { EventDialog } from "../DialogStyles";
 
 export const CrisisEvent = (props: {
   regions: Region[];
@@ -143,19 +144,13 @@ export const CrisisEvent = (props: {
     }
   };
   return (
-    <Dialog
-      maxWidth="xl"
-      open={true}
-      PaperProps={{ sx: { ml: "1000px" } }}
-      hideBackdrop
-      draggable={true}
-    >
+    <EventDialog>
       <DialogTitle>
         Event: Crisis (Strength: {props.event.strength}, Symbol:{" "}
         {props.event.symbol.toString()})
       </DialogTitle>
       {renderDialog()}
-    </Dialog>
+    </EventDialog>
   );
 };
 

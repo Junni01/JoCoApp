@@ -17,6 +17,7 @@ import {
   doesLossOfRegionCauseEmpireShatter,
   getEmpireDominatedRegionIds,
 } from "../Helpers";
+import { EventDialog } from "../DialogStyles";
 
 type ForeignInvasionEventProps = {
   regions: Region[];
@@ -91,10 +92,10 @@ export const ForeignInvasionEvent = (props: ForeignInvasionEventProps) => {
   };
 
   return (
-    <Dialog open={true}>
+    <EventDialog>
       <DialogTitle>Foreign Invasion</DialogTitle>
       {renderDialogContent()}
-    </Dialog>
+    </EventDialog>
   );
 };
 

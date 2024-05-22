@@ -11,6 +11,7 @@ import { doesLossOfRegionCauseEmpireShatter } from "../Helpers";
 import { useContext, useState } from "react";
 import { RebellionInCompanyControlled } from "./Rebellions";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
+import { EventDialog } from "../DialogStyles";
 
 export const LeaderEvent = (props: {
   drawStackRegion: Region;
@@ -66,16 +67,7 @@ export const LeaderEvent = (props: {
     }
   };
 
-  return (
-    <Dialog
-      open={true}
-      PaperProps={{ sx: { ml: "1000px" } }}
-      hideBackdrop
-      draggable
-    >
-      {renderDialogContent()}
-    </Dialog>
-  );
+  return <EventDialog>{renderDialogContent()}</EventDialog>;
 };
 
 const LeaderInSovereignAndCapital = (props: {
@@ -119,7 +111,7 @@ const LeaderInDominated = (props: {
 
   return (
     <>
-      <DialogTitle>Event: Leader in {props.mainRegionName}.</DialogTitle>
+      <DialogTitle>Event: Leader in {props.drawStackRegion.id}.</DialogTitle>
       <DialogContent>
         <Typography>
           Rebellion in dominated {props.drawStackRegion.id} (strength:{" "}

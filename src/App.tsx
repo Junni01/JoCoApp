@@ -11,10 +11,14 @@ import {
 } from "@mui/material";
 import { IndiaMap } from "./IndiaMap";
 import { Scenario } from "./Types";
-import { useState } from "react";
-import { getInitialEventDeck } from "./Data";
+import { useContext, useState } from "react";
+import {
+  getElephantInitialPosition,
+  getInitialEventDeck,
+  getRegionData,
+} from "./Data";
 import { shuffleEventPile } from "./Helpers";
-import { GlobalEffectsProvider } from "./GlobalEffectsContext";
+import { GlobalEffectsContext } from "./GlobalEffectsContext";
 
 function App() {
   const [SetupDialogOpen, setSetupDialogOpen] = useState(true);
@@ -24,16 +28,26 @@ function App() {
   const initialEventDeck = getInitialEventDeck();
   const shuffledEventDeck = shuffleEventPile(initialEventDeck);
 
+  const globalEffects = useContext(GlobalEffectsContext);
+
   const handleSetScenario = (scenario: Scenario) => {
     setScenario(scenario);
+    globalEffects.setEventDeck(shuffledEventDeck);
+    globalEffects.setElephant(getElephantInitialPosition(scenario));
+    globalEffects.setRegions(getRegionData(scenario));
+  };
+
+  const handleStartGame = () => {
+    globalEffects.setEventDeck(shuffledEventDeck);
+    globalEffects.setElephant(getElephantInitialPosition(scenario));
+    globalEffects.setRegions(getRegionData(scenario));
+    setSetupDialogOpen(false);
   };
 
   return (
     <>
       {!SetupDialogOpen && (
-        <GlobalEffectsProvider>
-          <IndiaMap scenario={scenario} initialEventDeck={shuffledEventDeck} />
-        </GlobalEffectsProvider>
+        <IndiaMap scenario={scenario} initialEventDeck={shuffledEventDeck} />
       )}
       {SetupDialogOpen && (
         <Dialog open={true}>
@@ -67,7 +81,7 @@ function App() {
               <Button
                 variant="contained"
                 onClick={() => {
-                  setSetupDialogOpen(false);
+                  handleStartGame();
                 }}
               >
                 Start Game

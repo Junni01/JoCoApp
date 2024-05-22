@@ -42,22 +42,27 @@ import { ElephantCard } from "./ElephantCard";
 import { GlobalEffectsDialog } from "./GlobalEffectsDialog";
 import { GlobalEffectsContext } from "./GlobalEffectsContext";
 import { ForeignInvasionEvent } from "./EventDialogs/ForeignInvasionEvent";
+import { EventStack } from "./EventStack";
 
 export const IndiaMap = (props: {
   scenario: Scenario;
   initialEventDeck: EventCard[];
 }) => {
-  const [regions, setRegions] = useState<Region[]>(
-    getRegionData(props.scenario)
-  );
-  const [elephant, setElephant] = useState<Elephant>(
-    getElephantInitialPosition(props.scenario)
-  );
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const regions = globalEffectsContext.regions;
+  const elephant = globalEffectsContext.elephant;
+  const eventDeck = globalEffectsContext.eventDeck;
+  const eventDiscardPile = globalEffectsContext.eventDiscardPile;
+  const drawStackRegion = globalEffectsContext.drawStackRegion;
+  const setRegions = globalEffectsContext.setRegions;
+  const setElephant = globalEffectsContext.setElephant;
+  const setEvenDeck = globalEffectsContext.setEventDeck;
+  const setEventDiscardPile = globalEffectsContext.setEventDiscardPile;
+  const activeEvent = globalEffectsContext.activeEvent;
+  const setActiveEvent = globalEffectsContext.setActiveEvent;
+  const executeElephantsMarch = globalEffectsContext.executeElephantsMarch;
+  const discardEvent = globalEffectsContext.discardEvent;
 
-  const [eventDeck, setEvenDeck] = useState<EventCard[]>(
-    props.initialEventDeck
-  );
-  const [eventDiscardPile, setEventDiscardPile] = useState<EventCard[]>([]);
   const [showEventDialog, setShowEventDialog] = useState<boolean>(false);
   const [showDeployDialog, setShowDeployDialog] = useState<boolean>(false);
   const [showGlobalEffectsDialog, setShowGlobalEffectsDialog] =
@@ -65,64 +70,8 @@ export const IndiaMap = (props: {
   const [showModifyRegionDialog, setShowModifyRegionDialog] =
     useState<boolean>(false);
   const [activeRegion, setActiveRegion] = useState<Region>();
-  const [activeEvent, setActiveEvent] = useState<EventCard | undefined>(
-    undefined
-  );
-  const [eventsDrawn, setEventsDrawn] = useState<number>(0);
-  const globalEffectsContext = useContext(GlobalEffectsContext);
 
   console.log(eventDeck);
-
-  const drawStackRegion =
-    regions.find((r) => r.id === eventDeck[eventDeck.length - 1].Region) ??
-    regions[0];
-
-  const drawEvent = () => {
-    if (eventDeck.length === 0) {
-      console.error("Event Draw pile is empty! This should not happen");
-      return;
-    }
-
-    if (eventDeck.length === 1 && eventDeck[0].type !== EventType.Shuffle) {
-      console.error(
-        "Event Draw pile has only on card and it is not shuffle, This should not happen!"
-      );
-      return;
-    }
-
-    setEventsDrawn(eventsDrawn + 1);
-    const event = eventDeck.pop();
-
-    if (!event) {
-      console.error("drawEvent: Event deck is empty, it should not be");
-      return;
-    }
-
-    setEvenDeck([...eventDeck]);
-    setActiveEvent(event);
-
-    console.log(
-      `Event Drawn: ${event.type}, new region at the top of the draw stack is ${drawStackRegion.id}`
-    );
-
-    setShowEventDialog(true);
-  };
-
-  const handleEventDialogOk = () => {
-    discardEvent();
-    setActiveEvent(undefined);
-    setShowEventDialog(false);
-  };
-
-  const discardEvent = () => {
-    if (!activeEvent) {
-      console.error("active event is undefined");
-      return;
-    }
-    const discards = [...eventDiscardPile];
-    discards.push(activeEvent);
-    setEventDiscardPile([...discards]);
-  };
 
   const handleDeployButtonClick = (region: Region | undefined) => {
     if (!region) {
@@ -304,88 +253,6 @@ export const IndiaMap = (props: {
     setRegions([...newRegionArray, region]);
     setActiveRegion(undefined);
     setShowModifyRegionDialog(false);
-  };
-
-  const executeShuffleEvent = () => {
-    const events = [...eventDeck];
-    const shuffleEvent = activeEvent;
-    if (!shuffleEvent) {
-      console.error("active event is undefined");
-      return;
-    }
-
-    let elephantsMarchExecuted: boolean = false;
-
-    if (eventDeck.length !== 0) {
-      console.log("Shuffle Event: Elephants March executed before shuffle");
-      executeElephantsMarch(false);
-      elephantsMarchExecuted = true;
-    }
-
-    // Put shuffle event into the draw pile.
-    events.push(shuffleEvent);
-    // Shuffle the draw pile
-    shuffleEventPile(events);
-
-    const discards = [...eventDiscardPile];
-    // Shuffle discards pile
-    shuffleEventPile(discards);
-    // Put discards on "top" of draw pile
-    events.push(...discards);
-    setEvenDeck([...events]);
-    setEventDiscardPile([]);
-
-    setActiveEvent(undefined);
-
-    if (!elephantsMarchExecuted) {
-      console.log("Shuffle Event: Elephants March executed after shuffle");
-      executeElephantsMarch(false);
-    }
-
-    setShowEventDialog(false);
-  };
-
-  const executePeaceEvent = () => {
-    if (!activeEvent) {
-      console.error("active event is undefined");
-      return;
-    }
-
-    const mainRegion = regions.find((r) => r.id === elephant.MainRegion);
-    const targetRegion = regions.find((r) => r.id === elephant.TargetRegion);
-
-    if (elephant.TargetRegion !== undefined) {
-      if (!mainRegion || !targetRegion) {
-        console.error("Main or Target region is undefined");
-        return;
-      }
-
-      const newRegionArray = regions.filter(
-        (r) => r.id !== targetRegion?.id && r.id !== mainRegion?.id
-      );
-
-      mainRegion.towerLevel++;
-
-      if (targetRegion?.status !== RegionStatus.CompanyControlled) {
-        targetRegion.towerLevel++;
-      }
-
-      setRegions([...newRegionArray, mainRegion, targetRegion]);
-    } else {
-      if (!mainRegion) {
-        console.error("Main region is undefined");
-        return;
-      }
-      mainRegion.unrest = 0;
-      const newRegionArray = regions.filter((r) => r.id !== mainRegion.id);
-      setRegions([...newRegionArray, mainRegion]);
-    }
-
-    executeElephantsMarch(false);
-
-    discardEvent();
-    setActiveEvent(undefined);
-    setShowEventDialog(false);
   };
 
   const executeLeaderEvent = (rebellionOutcomes: Rebellion[]) => {
@@ -965,6 +832,10 @@ export const IndiaMap = (props: {
     }
   };
 
+  const confirmEvent = () => {
+    setShowEventDialog(false);
+  };
+
   const renderEventDialog = () => {
     if (!activeEvent) {
       return;
@@ -972,21 +843,11 @@ export const IndiaMap = (props: {
 
     switch (activeEvent.type) {
       case EventType.Shuffle:
-        return <ShuffleEvent onOk={executeShuffleEvent} />;
+        return <ShuffleEvent onOk={confirmEvent} />;
       case EventType.Windfall:
-        return (
-          <WindfallEvent
-            drawStackRegion={drawStackRegion}
-            onOk={handleEventDialogOk}
-          />
-        );
+        return <WindfallEvent onOk={confirmEvent} />;
       case EventType.Turmoil:
-        return (
-          <TurmoilEvent
-            drawStackRegion={drawStackRegion}
-            onOk={handleEventDialogOk}
-          />
-        );
+        return <TurmoilEvent onOk={confirmEvent} />;
       case EventType.Leader:
         return (
           <LeaderEvent
@@ -997,15 +858,7 @@ export const IndiaMap = (props: {
           />
         );
       case EventType.Peace:
-        return (
-          <PeaceEvent
-            drawStackRegion={drawStackRegion}
-            regions={regions}
-            event={activeEvent}
-            elephant={elephant}
-            onOk={executePeaceEvent}
-          />
-        );
+        return <PeaceEvent onOk={confirmEvent} />;
       case EventType.ResolveCrisis:
         return (
           <CrisisEvent
@@ -1018,7 +871,7 @@ export const IndiaMap = (props: {
       case EventType.ForeignInvasion:
         return (
           <ForeignInvasionEvent
-            onOk={handleEventDialogOk}
+            onOk={confirmEvent}
             elephant={elephant}
             regions={regions}
             drawStackRegion={drawStackRegion}
@@ -1030,42 +883,6 @@ export const IndiaMap = (props: {
       default:
         return;
     }
-  };
-
-  const executeElephantsMarch = (imperialAmbitions: boolean) => {
-    if (!activeEvent) {
-      console.error("Active event is null");
-      return;
-    }
-
-    const elephantMainRegion = regions.find(
-      (r) => r.id === elephant.MainRegion
-    );
-
-    if (!elephantMainRegion) {
-      console.error("Elephant main region missing");
-      return;
-    }
-
-    let newElephant: Elephant | undefined;
-
-    if (imperialAmbitions) {
-      console.log("Elephant: Imperial Ambitions");
-      newElephant = marchElephant(
-        elephantMainRegion,
-        regions,
-        activeEvent.symbol
-      );
-    } else {
-      console.log("Elephant: No Imperial Ambitions");
-      newElephant = marchElephant(drawStackRegion, regions, activeEvent.symbol);
-    }
-
-    if (!newElephant) {
-      console.error("Elephant march failed");
-      return;
-    }
-    setElephant(newElephant);
   };
 
   const addUnrestToAllCompanyControlledRegions = () => {
@@ -1082,7 +899,6 @@ export const IndiaMap = (props: {
   };
 
   const handleResetCounters = () => {
-    setEventsDrawn(0);
     globalEffectsContext.setGlobalEffects({
       ...globalEffectsContext.globalEffects,
       RegionsLost: 0,
@@ -1101,7 +917,7 @@ export const IndiaMap = (props: {
     regions.find((r) => r.id === RegionName.Hyderabad) ?? regions[0];
 
   return (
-    <Container sx={{ bgcolor: "beige", m: 2 }} maxWidth="lg">
+    <Container fixed sx={{ bgcolor: "beige", m: 2 }}>
       <Grid container spacing={2}>
         <Grid xs={4}>
           <RegionCard
@@ -1163,6 +979,8 @@ export const IndiaMap = (props: {
         </Grid>
       </Grid>
       <>
+        <EventStack />
+
         <ElephantCard
           elephant={elephant}
           setElephant={setElephant}
@@ -1176,16 +994,9 @@ export const IndiaMap = (props: {
               justifyContent={"space-evenly"}
               alignItems={"center"}
             >
-              <Typography>Top of Event Pile: {drawStackRegion?.id}</Typography>
               <Typography>
-                Regions Lost: {globalEffectsContext.globalEffects.RegionsLost}
-                Events Drawn: {eventsDrawn}
-                <Button onClick={() => handleResetCounters()}>
-                  Reset
-                </Button>{" "}
+                Regions Lost : {globalEffectsContext.globalEffects.RegionsLost}
               </Typography>
-              <Button onClick={drawEvent}>Draw Event</Button>
-
               <Button onClick={() => setShowGlobalEffectsDialog(true)}>
                 Adjust Laws & Global Effects
               </Button>
@@ -1214,7 +1025,7 @@ export const IndiaMap = (props: {
           onCancel={handleModifyRegionCancel}
         />
       )}
-      {showEventDialog && activeEvent && renderEventDialog()}
+      {activeEvent && renderEventDialog()}
       {showGlobalEffectsDialog && (
         <GlobalEffectsDialog
           onClose={() => setShowGlobalEffectsDialog(false)}
