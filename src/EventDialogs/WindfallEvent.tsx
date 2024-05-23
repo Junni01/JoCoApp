@@ -7,17 +7,15 @@ import {
   ListItem,
   Typography,
 } from "@mui/material";
-import { Region } from "../Types";
 import { EventDialog } from "../DialogStyles";
 import { useContext } from "react";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
 
-export const WindfallEvent = (props: { onOk: () => void }) => {
+export const WindfallEvent = () => {
   const { drawStackRegion, discardEvent } = useContext(GlobalEffectsContext);
 
   const executeEvent = () => {
     discardEvent();
-    props.onOk();
   };
 
   return (

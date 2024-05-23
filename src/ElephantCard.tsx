@@ -15,25 +15,18 @@ import {
 } from "@mui/material";
 import { Elephant, Region, RegionName, RegionStatus } from "./Types";
 import SettingsIcon from "@mui/icons-material/Settings";
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { GlobalEffectsContext } from "./GlobalEffectsContext";
 
-type ElephantCardProps = {
-  elephant: Elephant;
-  setElephant: (elephant: Elephant) => void;
-  regions: Region[];
-};
-
-export const ElephantCard = (props: ElephantCardProps) => {
-  if (!props.elephant) {
-    console.error("ElephantCard: Elephant is undefined");
-    return <Card>Elephant is undefined</Card>;
-  }
+export const ElephantCard = () => {
+  const globalEffects = useContext(GlobalEffectsContext);
+  const { elephant, setElephant, regions } = globalEffects;
 
   const [elephantModifyDialogOpen, setElephantModifyDialogOpen] =
     useState<boolean>(false);
 
   const handleElephantDialogSave = (elephant: Elephant) => {
-    props.setElephant(elephant);
+    setElephant(elephant);
     setElephantModifyDialogOpen(false);
   };
 
@@ -51,21 +44,21 @@ export const ElephantCard = (props: ElephantCardProps) => {
               <SettingsIcon />
             </IconButton>
           </Box>
-          {props.elephant.TargetRegion ? (
+          {elephant.TargetRegion ? (
             <Typography>
-              {props.elephant.MainRegion}
+              {elephant.MainRegion}
               {" -> "}
-              {props.elephant.TargetRegion}
+              {elephant.TargetRegion}
             </Typography>
           ) : (
-            <Typography>{props.elephant.MainRegion}</Typography>
+            <Typography>{elephant.MainRegion}</Typography>
           )}
         </CardContent>
       </Card>
       {elephantModifyDialogOpen && (
         <ModifyElephantDialog
-          elephant={props.elephant}
-          regions={props.regions}
+          elephant={elephant}
+          regions={regions}
           open={elephantModifyDialogOpen}
           onClose={() => setElephantModifyDialogOpen(false)}
           onConfirm={handleElephantDialogSave}

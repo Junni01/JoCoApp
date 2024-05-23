@@ -1,6 +1,5 @@
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -11,7 +10,7 @@ import { useContext } from "react";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
 import { shuffleEventPile } from "../Helpers";
 
-export const ShuffleEvent = (props: { onOk: () => void }) => {
+export const ShuffleEvent = () => {
   const {
     activeEvent,
     setActiveEvent,
@@ -51,13 +50,11 @@ export const ShuffleEvent = (props: { onOk: () => void }) => {
     setEventDeck([...events]);
     setEventDiscardPile([]);
 
-    setActiveEvent(undefined);
-
     if (!elephantsMarchExecuted) {
       console.log("Shuffle Event: Elephants March executed after shuffle");
       executeElephantsMarch(false);
     }
-    props.onOk();
+    setActiveEvent(undefined);
   };
 
   return (

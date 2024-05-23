@@ -63,12 +63,10 @@ export const IndiaMap = (props: {
   const executeElephantsMarch = globalEffectsContext.executeElephantsMarch;
   const discardEvent = globalEffectsContext.discardEvent;
 
-  const [showEventDialog, setShowEventDialog] = useState<boolean>(false);
   const [showDeployDialog, setShowDeployDialog] = useState<boolean>(false);
   const [showGlobalEffectsDialog, setShowGlobalEffectsDialog] =
     useState<boolean>(false);
-  const [showModifyRegionDialog, setShowModifyRegionDialog] =
-    useState<boolean>(false);
+
   const [activeRegion, setActiveRegion] = useState<Region>();
 
   console.log(eventDeck);
@@ -235,104 +233,6 @@ export const IndiaMap = (props: {
     setShowDeployDialog(false);
   };
 
-  const handleModifyRegionClick = (region: Region | undefined) => {
-    if (!region) {
-      return;
-    }
-    setActiveRegion(region);
-    setShowModifyRegionDialog(true);
-  };
-
-  const handleModifyRegionCancel = () => {
-    setActiveRegion(undefined);
-    setShowModifyRegionDialog(false);
-  };
-
-  const handleModifyRegionSave = (region: Region) => {
-    const newRegionArray = regions.filter((r) => r.id !== region.id);
-    setRegions([...newRegionArray, region]);
-    setActiveRegion(undefined);
-    setShowModifyRegionDialog(false);
-  };
-
-  const executeLeaderEvent = (rebellionOutcomes: Rebellion[]) => {
-    if (
-      drawStackRegion.status === RegionStatus.Sovereign ||
-      drawStackRegion.status === RegionStatus.EmpireCapital
-    ) {
-      const newRegionArray = regions.filter((r) => r.id !== drawStackRegion.id);
-      drawStackRegion.towerLevel++;
-      setRegions([...newRegionArray, drawStackRegion]);
-    }
-
-    if (drawStackRegion.status === RegionStatus.Dominated) {
-      const rebellingRegion = regions.find((r) => r.id === drawStackRegion.id);
-      const dominator = regions.find((r) => r.id === drawStackRegion.dominator);
-
-      if (!dominator || !rebellingRegion) {
-        console.error(
-          "executeLeaderEvent: rebelling region or Dominator for dominated region not found!"
-        );
-        return;
-      }
-
-      const rebellionStrength =
-        rebellingRegion.towerLevel + (activeEvent?.strength ?? 0);
-      const dominatorStrength = dominator.towerLevel;
-      const rebellionSuccessful = rebellionStrength > dominatorStrength;
-
-      const newRegionArray = regions.filter(
-        (r) => r.id !== rebellingRegion.id && r.id !== dominator.id
-      );
-
-      if (rebellionSuccessful) {
-        if (doesLossOfRegionCauseEmpireShatter(rebellingRegion, regions)) {
-          dominator.status = RegionStatus.Sovereign;
-        }
-        rebellingRegion.status = RegionStatus.Sovereign;
-        rebellingRegion.dominator = undefined;
-      } else {
-        if (dominator.towerLevel > 0) {
-          dominator.towerLevel = dominator.towerLevel - 1;
-        }
-      }
-
-      setRegions([...newRegionArray, rebellingRegion, dominator]);
-    }
-
-    if (drawStackRegion.status === RegionStatus.CompanyControlled) {
-      const rebellionRegions: Region[] = [];
-
-      for (const rebellion of rebellionOutcomes) {
-        const region = regions.find((r) => r.id === rebellion.Region.id);
-
-        if (!region) {
-          console.error("Region not found in regions array");
-          return;
-        }
-        if (!rebellion.RebellionSuppressed) {
-          region.status = RegionStatus.Sovereign;
-          region.controllingPresidency = undefined;
-          region.towerLevel = 1;
-        } else {
-          region.unrest = 0;
-        }
-        rebellionRegions.push(region);
-      }
-
-      const newRegionArray = regions.filter(
-        (r) => !rebellionRegions.includes(r)
-      );
-
-      setRegions([...newRegionArray, ...rebellionRegions]);
-      executeElephantsMarch(false);
-    }
-
-    discardEvent();
-    setActiveEvent(undefined);
-    setShowEventDialog(false);
-  };
-
   const executeCrisisEvent = (
     mainCrisisWon: boolean,
     rebellions: Rebellion[]
@@ -376,8 +276,6 @@ export const IndiaMap = (props: {
         );
     }
     discardEvent();
-    setActiveEvent(undefined);
-    setShowEventDialog(false);
   };
 
   const executeSovereignInvadesSovereign = () => {
@@ -832,10 +730,6 @@ export const IndiaMap = (props: {
     }
   };
 
-  const confirmEvent = () => {
-    setShowEventDialog(false);
-  };
-
   const renderEventDialog = () => {
     if (!activeEvent) {
       return;
@@ -843,22 +737,15 @@ export const IndiaMap = (props: {
 
     switch (activeEvent.type) {
       case EventType.Shuffle:
-        return <ShuffleEvent onOk={confirmEvent} />;
+        return <ShuffleEvent />;
       case EventType.Windfall:
-        return <WindfallEvent onOk={confirmEvent} />;
+        return <WindfallEvent />;
       case EventType.Turmoil:
-        return <TurmoilEvent onOk={confirmEvent} />;
+        return <TurmoilEvent />;
       case EventType.Leader:
-        return (
-          <LeaderEvent
-            drawStackRegion={drawStackRegion}
-            event={activeEvent}
-            regions={regions}
-            onOk={executeLeaderEvent}
-          />
-        );
+        return <LeaderEvent />;
       case EventType.Peace:
-        return <PeaceEvent onOk={confirmEvent} />;
+        return <PeaceEvent />;
       case EventType.ResolveCrisis:
         return (
           <CrisisEvent
@@ -871,7 +758,7 @@ export const IndiaMap = (props: {
       case EventType.ForeignInvasion:
         return (
           <ForeignInvasionEvent
-            onOk={confirmEvent}
+            onOk={() => {}}
             elephant={elephant}
             regions={regions}
             drawStackRegion={drawStackRegion}
@@ -898,13 +785,6 @@ export const IndiaMap = (props: {
     setRegions(newRegions);
   };
 
-  const handleResetCounters = () => {
-    globalEffectsContext.setGlobalEffects({
-      ...globalEffectsContext.globalEffects,
-      RegionsLost: 0,
-    });
-  };
-
   const punjab = regions.find((r) => r.id === RegionName.Punjab) ?? regions[0];
   const delhi = regions.find((r) => r.id === RegionName.Delhi) ?? regions[0];
   const bengal = regions.find((r) => r.id === RegionName.Bengal) ?? regions[0];
@@ -923,21 +803,18 @@ export const IndiaMap = (props: {
           <RegionCard
             region={punjab}
             handleDeployButtonClick={handleDeployButtonClick}
-            handleModifyRegionClick={handleModifyRegionClick}
           />
         </Grid>
         <Grid xs={4}>
           <RegionCard
             region={delhi}
             handleDeployButtonClick={handleDeployButtonClick}
-            handleModifyRegionClick={handleModifyRegionClick}
           />
         </Grid>
         <Grid xs={4}>
           <RegionCard
             region={bengal}
             handleDeployButtonClick={handleDeployButtonClick}
-            handleModifyRegionClick={handleModifyRegionClick}
           />
         </Grid>
 
@@ -945,21 +822,18 @@ export const IndiaMap = (props: {
           <RegionCard
             region={bombay}
             handleDeployButtonClick={handleDeployButtonClick}
-            handleModifyRegionClick={handleModifyRegionClick}
           />
         </Grid>
         <Grid xs={4}>
           <RegionCard
             region={hyderabad}
             handleDeployButtonClick={handleDeployButtonClick}
-            handleModifyRegionClick={handleModifyRegionClick}
           />
         </Grid>
         <Grid xs={4}>
           <RegionCard
             region={maratha}
             handleDeployButtonClick={handleDeployButtonClick}
-            handleModifyRegionClick={handleModifyRegionClick}
           />
         </Grid>
 
@@ -967,25 +841,19 @@ export const IndiaMap = (props: {
           <RegionCard
             region={mysore}
             handleDeployButtonClick={handleDeployButtonClick}
-            handleModifyRegionClick={handleModifyRegionClick}
           />
         </Grid>
         <Grid xs={4}>
           <RegionCard
             region={madras}
             handleDeployButtonClick={handleDeployButtonClick}
-            handleModifyRegionClick={handleModifyRegionClick}
           />
         </Grid>
       </Grid>
       <>
         <EventStack />
 
-        <ElephantCard
-          elephant={elephant}
-          setElephant={setElephant}
-          regions={regions}
-        />
+        <ElephantCard />
 
         <Card>
           <CardContent>
@@ -1016,13 +884,6 @@ export const IndiaMap = (props: {
           regions={regions}
           targetRegion={activeRegion}
           elephant={elephant}
-        />
-      )}
-      {showModifyRegionDialog && (
-        <ModifyRegionDialog
-          region={activeRegion}
-          onSave={handleModifyRegionSave}
-          onCancel={handleModifyRegionCancel}
         />
       )}
       {activeEvent && renderEventDialog()}

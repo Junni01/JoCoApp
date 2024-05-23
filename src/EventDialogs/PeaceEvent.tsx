@@ -14,7 +14,7 @@ import { EventDialog } from "../DialogStyles";
 import { useContext } from "react";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
 
-export const PeaceEvent = (props: { onOk: () => void }) => {
+export const PeaceEvent = () => {
   const {
     regions,
     elephant,
@@ -49,7 +49,6 @@ export const PeaceEvent = (props: { onOk: () => void }) => {
     setRegions([...newRegionArray, mainRegion]);
     executeElephantsMarch(false);
     discardEvent();
-    props.onOk();
   };
 
   const executePeaceWithTargetRegion = () => {
@@ -67,7 +66,6 @@ export const PeaceEvent = (props: { onOk: () => void }) => {
     setRegions([...newRegionArray, mainRegion, targetRegion]);
     executeElephantsMarch(false);
     discardEvent();
-    props.onOk();
   };
 
   if (elephant.TargetRegion !== undefined) {

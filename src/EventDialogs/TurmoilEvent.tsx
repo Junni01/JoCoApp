@@ -1,22 +1,19 @@
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   Typography,
 } from "@mui/material";
-import { Region } from "../Types";
 import { EventDialog } from "../DialogStyles";
 import { useContext } from "react";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
 
-export const TurmoilEvent = (props: { onOk: () => void }) => {
+export const TurmoilEvent = () => {
   const { drawStackRegion, discardEvent } = useContext(GlobalEffectsContext);
 
   const executeEvent = () => {
     discardEvent();
-    props.onOk();
   };
 
   return (

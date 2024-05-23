@@ -13,53 +13,111 @@ import { RebellionInCompanyControlled } from "./Rebellions";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
 import { EventDialog } from "../DialogStyles";
 
-export const LeaderEvent = (props: {
-  drawStackRegion: Region;
-  regions: Region[];
-  event: EventCard;
-  onOk: (rebellionOutcomes: Rebellion[]) => void;
-}) => {
-  const additionalCrises = props.regions.filter(
+export const LeaderEvent = () => {
+  const globalEffects = useContext(GlobalEffectsContext);
+  const {
+    regions,
+    setRegions,
+    drawStackRegion,
+    activeEvent,
+    discardEvent,
+    executeElephantsMarch,
+  } = globalEffects;
+
+  const additionalCrises = regions.filter(
     (r) => r.status === RegionStatus.CompanyControlled && r.unrest > 0
   );
 
-  const handleNoCrisisOk = () => {
-    props.onOk([]);
+  const handleEventDone = () => {
+    discardEvent();
   };
 
-  const handleCrisisOk = (rebellionOutcomes: Rebellion[]) => {
-    props.onOk(rebellionOutcomes);
+  const executeLeaderInSovereignOrCapital = () => {
+    const newRegionArray = regions.filter((r) => r.id !== drawStackRegion.id);
+    drawStackRegion.towerLevel++;
+    setRegions([...newRegionArray, drawStackRegion]);
+    handleEventDone();
+  };
+
+  const executeLeaderInDominated = (
+    rebellingRegion: Region,
+    dominator: Region,
+    rebellionSuccessful: boolean,
+    empireShatters: boolean
+  ) => {
+    const newRegionArray = regions.filter(
+      (r) => r.id !== rebellingRegion.id && r.id !== dominator.id
+    );
+
+    if (rebellionSuccessful) {
+      if (empireShatters) {
+        dominator.status = RegionStatus.Sovereign;
+      }
+      rebellingRegion.status = RegionStatus.Sovereign;
+      rebellingRegion.dominator = undefined;
+    } else {
+      if (dominator.towerLevel > 0) {
+        dominator.towerLevel = dominator.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegionArray, rebellingRegion, dominator]);
+    handleEventDone();
+  };
+
+  const executeLeaderInCompanyControlled = (rebellionOutcomes: Rebellion[]) => {
+    const rebellionRegions: Region[] = [];
+
+    for (const rebellion of rebellionOutcomes) {
+      const region = regions.find((r) => r.id === rebellion.Region.id);
+
+      if (!region) {
+        console.error("Region not found in regions array");
+        return;
+      }
+      if (!rebellion.RebellionSuppressed) {
+        region.status = RegionStatus.Sovereign;
+        region.controllingPresidency = undefined;
+        region.towerLevel = 1;
+      } else {
+        region.unrest = 0;
+      }
+      rebellionRegions.push(region);
+    }
+
+    const newRegionArray = regions.filter((r) => !rebellionRegions.includes(r));
+
+    setRegions([...newRegionArray, ...rebellionRegions]);
+    executeElephantsMarch(false);
+    handleEventDone();
   };
 
   const renderDialogContent = () => {
     if (
-      props.drawStackRegion.status === RegionStatus.Sovereign ||
-      props.drawStackRegion.status === RegionStatus.EmpireCapital
+      drawStackRegion.status === RegionStatus.Sovereign ||
+      drawStackRegion.status === RegionStatus.EmpireCapital
     ) {
       return (
         <LeaderInSovereignAndCapital
-          mainRegionName={props.drawStackRegion.id}
-          onOk={handleNoCrisisOk}
+          mainRegionName={drawStackRegion.id}
+          onOk={executeLeaderInSovereignOrCapital}
         />
       );
-    } else if (props.drawStackRegion.status === RegionStatus.Dominated) {
+    } else if (drawStackRegion.status === RegionStatus.Dominated) {
       return (
         <LeaderInDominated
-          drawStackRegion={props.drawStackRegion}
-          regions={props.regions}
-          event={props.event}
-          onOk={handleNoCrisisOk}
+          drawStackRegion={drawStackRegion}
+          regions={regions}
+          event={activeEvent}
+          onOk={executeLeaderInDominated}
         />
       );
-    } else if (
-      props.drawStackRegion.status === RegionStatus.CompanyControlled
-    ) {
+    } else if (drawStackRegion.status === RegionStatus.CompanyControlled) {
       return (
         <LeaderInCompanyControlled
-          drawStackRegion={props.drawStackRegion}
-          event={props.event}
+          drawStackRegion={drawStackRegion}
+          event={activeEvent}
           additionalCrises={additionalCrises}
-          handleConfirmResults={handleCrisisOk}
+          handleConfirmResults={executeLeaderInCompanyControlled}
         />
       );
     } else {
@@ -91,8 +149,13 @@ const LeaderInSovereignAndCapital = (props: {
 const LeaderInDominated = (props: {
   drawStackRegion: Region;
   regions: Region[];
-  event: EventCard;
-  onOk: () => void;
+  event: EventCard | undefined;
+  onOk: (
+    rebellingRegion: Region,
+    dominator: Region,
+    rebellionSuccessful: boolean,
+    empireShatters: boolean
+  ) => void;
 }) => {
   const dominator = props.regions.find(
     (r) => r.id === props.drawStackRegion.dominator
@@ -104,10 +167,21 @@ const LeaderInDominated = (props: {
     );
     return;
   }
+
+  if (!props.event) {
+    console.error("EventDialog:EventTypeLeader: Event is undefined!");
+    return;
+  }
+
   const rebellionStrength =
     props.drawStackRegion.towerLevel + props.event.strength;
   const dominatorStrength = dominator.towerLevel;
   const rebellionSuccessful = rebellionStrength > dominatorStrength;
+
+  const empireShatters = doesLossOfRegionCauseEmpireShatter(
+    props.drawStackRegion,
+    props.regions
+  );
 
   return (
     <>
@@ -126,10 +200,7 @@ const LeaderInDominated = (props: {
               {props.drawStackRegion.id}. If all orders are already closed,
               perform a Cascade. The Region is now Sovereign.{" "}
             </Typography>
-            {doesLossOfRegionCauseEmpireShatter(
-              props.drawStackRegion,
-              props.regions
-            ) && (
+            {empireShatters && (
               <Typography>
                 {props.drawStackRegion.dominator} Empire shatters: Remove large
                 flag from {props.drawStackRegion.dominator}
@@ -144,7 +215,18 @@ const LeaderInDominated = (props: {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={() => props.onOk()}>Ok</Button>
+        <Button
+          onClick={() =>
+            props.onOk(
+              props.drawStackRegion,
+              dominator,
+              rebellionSuccessful,
+              empireShatters
+            )
+          }
+        >
+          Ok
+        </Button>
       </DialogActions>
     </>
   );
@@ -152,7 +234,7 @@ const LeaderInDominated = (props: {
 
 const LeaderInCompanyControlled = (props: {
   drawStackRegion: Region;
-  event: EventCard;
+  event: EventCard | undefined;
   additionalCrises: Region[];
   handleConfirmResults: (rebellionResults: Rebellion[]) => void;
 }) => {
@@ -193,7 +275,7 @@ const LeaderInCompanyControlled = (props: {
       ? activeRebellionRegion.unrest * 2
       : activeRebellionRegion.unrest;
     return rebellionIndex === 0
-      ? unrestStrength + props.event.strength
+      ? unrestStrength + (props.event?.strength ?? 0)
       : unrestStrength;
   };
 
@@ -202,7 +284,7 @@ const LeaderInCompanyControlled = (props: {
       <DialogTitle>
         {" "}
         Event: Leader in {props.drawStackRegion.id}. (Strength:{" "}
-        {props.event.strength}, Symbol: {props.event.symbol.toString()}){" "}
+        {props.event?.strength}, Symbol: {props.event?.symbol.toString()}){" "}
       </DialogTitle>
       <RebellionInCompanyControlled
         rebellionStrength={getRebellionStrength()}
