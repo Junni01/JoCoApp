@@ -11,12 +11,14 @@ import { useContext, useState } from "react";
 import { GlobalEffectsContext } from "./GlobalEffectsContext";
 
 export const EventStack = () => {
-  const { drawEvent, drawStackRegion } = useContext(GlobalEffectsContext);
+  const { drawEvent, drawStackRegion, eventTotal, setEventTotal } =
+    useContext(GlobalEffectsContext);
 
   const [eventsDrawn, setEventsDrawn] = useState(0);
 
   const drawEventCard = () => {
     setEventsDrawn(eventsDrawn + 1);
+    setEventTotal(eventTotal - 1);
     drawEvent();
   };
 
@@ -37,6 +39,7 @@ export const EventStack = () => {
           <IconButton onClick={resetEventsDrawn}>
             <RestartAltIcon />
           </IconButton>
+          <Typography>Events to Resolve: {eventTotal}</Typography>
         </Box>
       </CardContent>
     </Card>

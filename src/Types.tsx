@@ -58,6 +58,7 @@ export type Region = {
   id: RegionName;
   index: number;
   status: RegionStatus;
+  leader?: string | undefined;
   neighbors: Neighbor[];
   towerLevel: number;
   dominator?: RegionName;

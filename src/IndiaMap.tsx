@@ -43,6 +43,7 @@ import { GlobalEffectsDialog } from "./GlobalEffectsDialog";
 import { GlobalEffectsContext } from "./GlobalEffectsContext";
 import { ForeignInvasionEvent } from "./EventDialogs/ForeignInvasionEvent";
 import { EventStack } from "./EventStack";
+import { EventsInIndiaDialog } from "./EventsInIndiaDialog";
 
 export const IndiaMap = (props: {
   scenario: Scenario;
@@ -52,185 +53,24 @@ export const IndiaMap = (props: {
   const regions = globalEffectsContext.regions;
   const elephant = globalEffectsContext.elephant;
   const eventDeck = globalEffectsContext.eventDeck;
-  const eventDiscardPile = globalEffectsContext.eventDiscardPile;
   const drawStackRegion = globalEffectsContext.drawStackRegion;
   const setRegions = globalEffectsContext.setRegions;
   const setElephant = globalEffectsContext.setElephant;
-  const setEvenDeck = globalEffectsContext.setEventDeck;
-  const setEventDiscardPile = globalEffectsContext.setEventDiscardPile;
   const activeEvent = globalEffectsContext.activeEvent;
-  const setActiveEvent = globalEffectsContext.setActiveEvent;
   const executeElephantsMarch = globalEffectsContext.executeElephantsMarch;
   const discardEvent = globalEffectsContext.discardEvent;
 
-  const [showDeployDialog, setShowDeployDialog] = useState<boolean>(false);
   const [showGlobalEffectsDialog, setShowGlobalEffectsDialog] =
     useState<boolean>(false);
 
-  const [activeRegion, setActiveRegion] = useState<Region>();
+  const [deployRegion, setDeployRegion] = useState<Region | undefined>();
+  const [showIndiaEventsDialog, setShowIndiaEventsDialog] =
+    useState<boolean>(false);
 
   console.log(eventDeck);
 
-  const handleDeployButtonClick = (region: Region | undefined) => {
-    if (!region) {
-      return;
-    }
-    setActiveRegion(region);
-    setShowDeployDialog(true);
-  };
-
-  const handleDeployDialogCancel = () => {
-    setActiveRegion(undefined);
-    setShowDeployDialog(false);
-  };
-
-  const handleSuccessfulDeployToCompanyControlledRegion = (
-    deployingPresidency: Presidency
-  ) => {
-    if (!activeRegion) {
-      console.error(
-        "handleSuccessfulDeployToCompanyControlledRegion: Active Region is Undefined!"
-      );
-      return;
-    }
-
-    if (deployingPresidency !== activeRegion.controllingPresidency) {
-      console.error(
-        "handleSuccessfulDeployToCompanyControlledRegion: The deploying residency is not the one controlling this region!"
-      );
-      return;
-    }
-
-    const newRegionArray = regions.filter((r) => r.id !== activeRegion.id);
-    activeRegion.unrest = 0;
-    setRegions([...newRegionArray, activeRegion]);
-  };
-
-  const handleSuccessfulDeployToDominatedRegion = (
-    deployingPresidency: Presidency
-  ) => {
-    if (!activeRegion) {
-      console.error(
-        "handleSuccessfulDeployToDominatedRegion: Active Region is Undefined!"
-      );
-      return;
-    }
-
-    const dominator = regions.find((r) => r.id === activeRegion.dominator);
-
-    if (!dominator) {
-      console.error(
-        "handleSuccessfulDeployToDominatedRegion: Dominator is undefined!"
-      );
-      return;
-    }
-
-    if (doesLossOfRegionCauseEmpireShatter(activeRegion, regions)) {
-      dominator.status = RegionStatus.Sovereign;
-    }
-
-    const newRegionArray = regions.filter(
-      (r) => r.id !== activeRegion.id && r.id !== dominator?.id
-    );
-    activeRegion.unrest = 0;
-    activeRegion.lootAvailable = false;
-    activeRegion.status = RegionStatus.CompanyControlled;
-    activeRegion.towerLevel = 0;
-    activeRegion.dominator = undefined;
-    activeRegion.controllingPresidency = deployingPresidency;
-
-    setRegions([...newRegionArray, activeRegion, dominator]);
-  };
-
-  const handleSuccessfulDeployToSovereignRegion = (
-    deployingPresidency: Presidency
-  ) => {
-    if (!activeRegion) {
-      console.error(
-        "handleSuccessfulDeployToSovereignRegion: active Region is undefined!"
-      );
-      return;
-    }
-    const newRegionArray = regions.filter((r) => r.id !== activeRegion.id);
-    activeRegion.unrest = 0;
-    activeRegion.lootAvailable = false;
-    activeRegion.status = RegionStatus.CompanyControlled;
-    activeRegion.towerLevel = 0;
-    activeRegion.controllingPresidency = deployingPresidency;
-    setRegions([...newRegionArray, activeRegion]);
-  };
-
-  const handleSuccessfulDeployToCapitalRegion = (
-    deployingPresidency: Presidency
-  ) => {
-    if (!activeRegion) {
-      console.error(
-        "handleSuccessfulDeployToCapitalRegion: active Region is undefined!"
-      );
-      return;
-    }
-    const dominatedRegions = regions.filter(
-      (r) => r.dominator === activeRegion.id
-    );
-
-    activeRegion.unrest = 0;
-    activeRegion.lootAvailable = false;
-    activeRegion.status = RegionStatus.CompanyControlled;
-    activeRegion.towerLevel = 0;
-    activeRegion.dominator = undefined;
-    activeRegion.controllingPresidency = deployingPresidency;
-    const newRegionArray = regions.filter(
-      (r) => r.id !== activeRegion.id && !dominatedRegions.includes(r)
-    );
-
-    const modifiedDominatedRegions: Region[] = [];
-
-    for (const region of dominatedRegions) {
-      region.dominator = undefined;
-      region.status = RegionStatus.Sovereign;
-      modifiedDominatedRegions.push(region);
-    }
-
-    setRegions([...newRegionArray, ...modifiedDominatedRegions, activeRegion]);
-  };
-
-  const deployRedirectElephant = () => {
-    if (
-      elephant.MainRegion === activeRegion?.id &&
-      elephant.TargetRegion !== undefined
-    ) {
-      setElephant({ MainRegion: activeRegion.id, TargetRegion: undefined });
-    }
-  };
-
-  const handleDeployConfirm = (
-    type: DeployType,
-    success: boolean,
-    deployingPresidency: Presidency
-  ) => {
-    if (success) {
-      switch (type) {
-        case DeployType.CompanyControlledWithUnrest:
-        case DeployType.CompanyControlledWithoutUnrest:
-          handleSuccessfulDeployToCompanyControlledRegion(deployingPresidency);
-          break;
-        case DeployType.Dominated:
-          handleSuccessfulDeployToDominatedRegion(deployingPresidency);
-          break;
-        case DeployType.Sovereign:
-          handleSuccessfulDeployToSovereignRegion(deployingPresidency);
-          break;
-        case DeployType.EmpireCapital:
-          handleSuccessfulDeployToCapitalRegion(deployingPresidency);
-          break;
-        default:
-          console.error("DeployType not found");
-      }
-      deployRedirectElephant();
-    }
-
-    setActiveRegion(undefined);
-    setShowDeployDialog(false);
+  const handleDeployDialogOk = () => {
+    setDeployRegion(undefined);
   };
 
   const executeCrisisEvent = (
@@ -778,7 +618,6 @@ export const IndiaMap = (props: {
 
     for (const region of newRegions) {
       if (region.status === RegionStatus.CompanyControlled) {
-        console.log(region.unrest);
         region.unrest++;
       }
     }
@@ -797,59 +636,53 @@ export const IndiaMap = (props: {
     regions.find((r) => r.id === RegionName.Hyderabad) ?? regions[0];
 
   return (
-    <Container fixed sx={{ bgcolor: "beige", m: 2 }}>
-      <Grid container spacing={2}>
-        <Grid xs={4}>
+    <Container sx={{ bgcolor: "beige" }}>
+      <Box display={"flex"} sx={{ m: 1 }}>
+        <Box>
           <RegionCard
             region={punjab}
-            handleDeployButtonClick={handleDeployButtonClick}
+            handleDeployButtonClick={() => setDeployRegion(punjab)}
           />
-        </Grid>
-        <Grid xs={4}>
+
           <RegionCard
             region={delhi}
-            handleDeployButtonClick={handleDeployButtonClick}
+            handleDeployButtonClick={() => setDeployRegion(delhi)}
           />
-        </Grid>
-        <Grid xs={4}>
+
           <RegionCard
             region={bengal}
-            handleDeployButtonClick={handleDeployButtonClick}
+            handleDeployButtonClick={() => setDeployRegion(bengal)}
           />
-        </Grid>
-
-        <Grid xs={4}>
+        </Box>
+        <Box>
           <RegionCard
             region={bombay}
-            handleDeployButtonClick={handleDeployButtonClick}
+            handleDeployButtonClick={() => setDeployRegion(bombay)}
           />
-        </Grid>
-        <Grid xs={4}>
+
           <RegionCard
             region={hyderabad}
-            handleDeployButtonClick={handleDeployButtonClick}
+            handleDeployButtonClick={() => setDeployRegion(hyderabad)}
           />
-        </Grid>
-        <Grid xs={4}>
+        </Box>
+
+        <Box>
           <RegionCard
             region={maratha}
-            handleDeployButtonClick={handleDeployButtonClick}
+            handleDeployButtonClick={() => setDeployRegion(maratha)}
           />
-        </Grid>
 
-        <Grid xs={4}>
           <RegionCard
             region={mysore}
-            handleDeployButtonClick={handleDeployButtonClick}
+            handleDeployButtonClick={() => setDeployRegion(mysore)}
           />
-        </Grid>
-        <Grid xs={4}>
+
           <RegionCard
             region={madras}
-            handleDeployButtonClick={handleDeployButtonClick}
+            handleDeployButtonClick={() => setDeployRegion(madras)}
           />
-        </Grid>
-      </Grid>
+        </Box>
+      </Box>
       <>
         <EventStack />
 
@@ -872,18 +705,18 @@ export const IndiaMap = (props: {
               <Button onClick={addUnrestToAllCompanyControlledRegions}>
                 Add 1 unrest to every Company controlled regions
               </Button>
+              <Button onClick={() => setShowIndiaEventsDialog(true)}>
+                Handle Events In India
+              </Button>
             </Box>
           </CardContent>
         </Card>
       </>
 
-      {showDeployDialog && (
+      {deployRegion && (
         <DeployDialog
-          onConfirmResults={handleDeployConfirm}
-          onCancel={handleDeployDialogCancel}
-          regions={regions}
-          targetRegion={activeRegion}
-          elephant={elephant}
+          onConfirm={handleDeployDialogOk}
+          targetRegion={deployRegion}
         />
       )}
       {activeEvent && renderEventDialog()}
@@ -891,6 +724,9 @@ export const IndiaMap = (props: {
         <GlobalEffectsDialog
           onClose={() => setShowGlobalEffectsDialog(false)}
         />
+      )}
+      {showIndiaEventsDialog && (
+        <EventsInIndiaDialog onOk={() => setShowIndiaEventsDialog(false)} />
       )}
     </Container>
   );

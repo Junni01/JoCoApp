@@ -1,5 +1,5 @@
 import { List, ListItem, ListItemIcon, Typography } from "@mui/material";
-import { Elephant, Presidency, Region, RegionStatus } from "../Types";
+import { Presidency, Region, RegionStatus } from "../Types";
 import {
   doesLossOfRegionCauseEmpireShatter,
   getEmpireDominatedRegionIds,
@@ -9,26 +9,21 @@ import { useContext } from "react";
 import MilitaryTechIcon from "@mui/icons-material/MilitaryTech";
 
 type DeployResultProps = {
-  targetRegion: Region | undefined;
-  regions: Region[];
+  targetRegion: Region;
   deploySuccessful: boolean;
-  elephant: Elephant;
   deployingPresidency: Presidency;
 };
 
 export const DeployResult = (props: DeployResultProps) => {
-  if (!props.targetRegion) {
-    console.error("Invalid target region");
-    return <Typography>Invalid target region</Typography>;
-  }
-
   const globalEffectsContext = useContext(GlobalEffectsContext);
+
+  const { elephant, globalEffects, regions } = globalEffectsContext;
 
   let elephantRedirect: boolean = false;
 
   if (
-    props.elephant.MainRegion === props.targetRegion?.id &&
-    props.elephant.TargetRegion !== undefined
+    elephant.MainRegion === props.targetRegion?.id &&
+    elephant.TargetRegion !== undefined
   ) {
     elephantRedirect = true;
   }
@@ -64,7 +59,7 @@ export const DeployResult = (props: DeployResultProps) => {
             </ListItem>
           ) : (
             <ListItem>
-              {globalEffectsContext.globalEffects.TreasureReform ? (
+              {globalEffects.TreasureReform ? (
                 <Typography>
                   <b>Divide Loot:</b> Add {loot} £ to the Company Balance. If
                   the loot is less than the number of survived officers + 1,
@@ -102,16 +97,16 @@ export const DeployResult = (props: DeployResultProps) => {
               {props.targetRegion.status === RegionStatus.Dominated && (
                 <RemoveEmpireFlagsItem
                   targetRegion={props.targetRegion}
-                  regions={props.regions}
+                  regions={regions}
                 />
               )}
               {props.targetRegion.status === RegionStatus.EmpireCapital && (
                 <EmpireShattersItem
                   empireName={props.targetRegion.dominator ?? ""}
-                  regions={props.regions}
+                  regions={regions}
                 />
               )}
-              {globalEffectsContext.globalEffects.GovernorGeneral ? (
+              {globalEffects.GovernorGeneral ? (
                 <ListItem>
                   <Typography>
                     <b>Instate Company Control:</b>Remove dome from region. Move

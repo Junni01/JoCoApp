@@ -303,6 +303,14 @@ export const shuffleEventPile = (pile: EventCard[]) => {
   return pile;
 };
 
+export const shuffleLeaders = (leaders: string[]) => {
+  for (let i = leaders.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [leaders[i], leaders[j]] = [leaders[j], leaders[i]];
+  }
+  return leaders;
+};
+
 export const isValidDeployRegion = (
   presidency: Presidency,
   region: Region,

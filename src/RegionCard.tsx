@@ -50,8 +50,8 @@ export const RegionCard = (props: RegionCardProps) => {
 
   return (
     <>
-      <Card key={props.region.id} sx={{ width: "320px", height: "250px" }}>
-        <CardContent>
+      <Card key={props.region.id} sx={{ m: 2 }}>
+        <CardContent sx={{ width: "320px", height: "150px" }}>
           <Box display="flex" justifyContent="space-between">
             <Typography variant="h6">{props.region.id}</Typography>
             <IconButton
@@ -66,6 +66,12 @@ export const RegionCard = (props: RegionCardProps) => {
           <Typography>
             <b>Status:</b> {renderRegionStatus()}
           </Typography>
+          {(props.region.status === RegionStatus.Sovereign ||
+            props.region.status === RegionStatus.EmpireCapital) && (
+            <Typography>
+              <b>Leader:</b> {props.region.leader ?? ""}
+            </Typography>
+          )}
 
           {props.region.status === RegionStatus.CompanyControlled && (
             <>
@@ -101,7 +107,7 @@ export const RegionCard = (props: RegionCardProps) => {
             </Typography>
           )}
         </CardContent>
-        <CardActions sx={{ alignContent: "end" }}>
+        <CardActions>
           <Button
             color="success"
             variant="contained"

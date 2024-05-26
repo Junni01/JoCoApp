@@ -13,11 +13,12 @@ import { IndiaMap } from "./IndiaMap";
 import { Scenario } from "./Types";
 import { useContext, useState } from "react";
 import {
+  Leaders,
   getElephantInitialPosition,
   getInitialEventDeck,
   getRegionData,
 } from "./Data";
-import { shuffleEventPile } from "./Helpers";
+import { shuffleEventPile, shuffleLeaders } from "./Helpers";
 import { GlobalEffectsContext } from "./GlobalEffectsContext";
 
 function App() {
@@ -27,6 +28,8 @@ function App() {
 
   const initialEventDeck = getInitialEventDeck();
   const shuffledEventDeck = shuffleEventPile(initialEventDeck);
+
+  const availableLeaders = shuffleLeaders(Leaders);
 
   const globalEffects = useContext(GlobalEffectsContext);
 
@@ -40,6 +43,16 @@ function App() {
   const handleStartGame = () => {
     globalEffects.setEventDeck(shuffledEventDeck);
     globalEffects.setElephant(getElephantInitialPosition(scenario));
+
+    const regions = getRegionData(scenario);
+
+    for (let i = 0; i < regions.length; i++) {
+      const leader = availableLeaders.pop();
+      regions[i].leader = leader;
+    }
+
+    globalEffects.setAvailableLeaders(availableLeaders);
+
     globalEffects.setRegions(getRegionData(scenario));
     setSetupDialogOpen(false);
   };

@@ -27,6 +27,10 @@ export interface GlobalEffectsContextType {
   executeElephantsMarch: (imperialAmbitions: boolean) => void;
   drawEvent: () => void;
   discardEvent: () => void;
+  eventTotal: number;
+  setEventTotal: (eventTotal: number) => void;
+  leaders: string[];
+  setAvailableLeaders: (leaders: string[]) => void;
 }
 
 export const GlobalEffectsContext = createContext<GlobalEffectsContextType>({
@@ -54,6 +58,10 @@ export const GlobalEffectsContext = createContext<GlobalEffectsContextType>({
   executeElephantsMarch: () => {},
   drawEvent: () => {},
   discardEvent: () => {},
+  eventTotal: 0,
+  setEventTotal: () => {},
+  leaders: [],
+  setAvailableLeaders: () => {},
 });
 
 export const GlobalEffectsProvider = (props: { children: React.ReactNode }) => {
@@ -143,6 +151,8 @@ export const GlobalEffectsProvider = (props: { children: React.ReactNode }) => {
 
   const [eventDeck, setEventDeck] = useState<EventCard[]>([]);
   const [eventDiscardPile, setEventDiscardPile] = useState<EventCard[]>([]);
+  const [eventTotal, setEventTotal] = useState<number>(0);
+  const [availableLeaders, setAvailableLeaders] = useState<string[]>([]);
 
   const [activeEvent, setActiveEvent] = useState<EventCard | undefined>(
     undefined
@@ -171,6 +181,10 @@ export const GlobalEffectsProvider = (props: { children: React.ReactNode }) => {
         executeElephantsMarch,
         drawEvent,
         discardEvent,
+        eventTotal,
+        setEventTotal,
+        leaders: availableLeaders,
+        setAvailableLeaders: setAvailableLeaders,
       }}
     >
       {props.children}

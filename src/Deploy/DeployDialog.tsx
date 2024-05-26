@@ -1,5 +1,9 @@
 import {
+  Box,
   Button,
+  Card,
+  CardActionArea,
+  CardContent,
   Dialog,
   DialogActions,
   DialogContent,
@@ -21,20 +25,18 @@ import {
   RegionName,
   RegionStatus,
 } from "../Types";
-import { calculateEmpireStrength, isValidDeployRegion } from "../Helpers";
-import { useState } from "react";
+import {
+  calculateEmpireStrength,
+  doesLossOfRegionCauseEmpireShatter,
+  isValidDeployRegion,
+} from "../Helpers";
+import { useContext, useState } from "react";
 import { DeployResult } from "./DeployResult";
+import { GlobalEffectsContext } from "../GlobalEffectsContext";
 
 type DeployDialogProps = {
   targetRegion: Region | undefined;
-  regions: Region[];
-  onConfirmResults: (
-    type: DeployType,
-    success: boolean,
-    deployingPresidency: Presidency
-  ) => void;
-  onCancel: () => void;
-  elephant: Elephant;
+  onConfirm: () => void;
 };
 
 enum DeployPage {
@@ -51,6 +53,9 @@ export const DeployDialog = (props: DeployDialogProps) => {
   const [deployingPresidency, setDeployingResidency] = useState<Presidency>(
     props.targetRegion?.controllingPresidency ?? Presidency.BengalPresidency
   );
+
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, setRegions, elephant, setElephant } = globalEffectsContext;
 
   if (!props.targetRegion) {
     console.error("DeployDialog: Target region is undefined");
@@ -87,11 +92,7 @@ export const DeployDialog = (props: DeployDialogProps) => {
     if (targetRegion.status === RegionStatus.CompanyControlled) {
       return targetRegion.controllingPresidency === deployingPresidency;
     } else {
-      return isValidDeployRegion(
-        deployingPresidency,
-        targetRegion,
-        props.regions
-      );
+      return isValidDeployRegion(deployingPresidency, targetRegion, regions);
     }
   };
 
@@ -117,9 +118,9 @@ export const DeployDialog = (props: DeployDialogProps) => {
       case RegionStatus.Sovereign:
         return targetRegion.towerLevel;
       case RegionStatus.Dominated:
-        return calculateEmpireStrength(targetRegion.id, props.regions);
+        return calculateEmpireStrength(targetRegion.id, regions);
       case RegionStatus.EmpireCapital:
-        return calculateEmpireStrength(targetRegion.id, props.regions);
+        return calculateEmpireStrength(targetRegion.id, regions);
       default:
         return 0;
     }
@@ -132,9 +133,9 @@ export const DeployDialog = (props: DeployDialogProps) => {
     ) {
       return (
         <Typography>
-          This is a company controlled region that has no unrest, you can deploy
-          if it has closed orders that you can open. Otherwise deploying to this
-          region is not allowed.
+          Note: This is a company controlled region that has no unrest, you can
+          deploy if it has closed orders that you can open. Otherwise deploying
+          to this region is not allowed.
         </Typography>
       );
     }
@@ -146,6 +147,7 @@ export const DeployDialog = (props: DeployDialogProps) => {
       if (props.targetRegion?.controllingPresidency !== deployingPresidency) {
         return (
           <Typography>
+            {deployingPresidency} is not allowed to deploy into this region:
             This region is controlled by{" "}
             {props.targetRegion?.controllingPresidency}, you are not allowed to
             deploy to another presidency's region
@@ -156,7 +158,8 @@ export const DeployDialog = (props: DeployDialogProps) => {
       if (isAnotherPresidentsHomeRegion()) {
         return (
           <Typography>
-            You cannot deploy to another presidency's home region
+            {deployingPresidency} is not allowed to deploy into this region:
+            Deploying to another presidency's home region is not allowed.
           </Typography>
         );
       }
@@ -167,20 +170,86 @@ export const DeployDialog = (props: DeployDialogProps) => {
       }
 
       if (
-        !isValidDeployRegion(
-          deployingPresidency,
-          props.targetRegion,
-          props.regions
-        )
+        !isValidDeployRegion(deployingPresidency, props.targetRegion, regions)
       ) {
         return (
           <Typography>
-            You cannot deploy to a region that is not adjacent to a region that
-            is controlled by your presidency or is not your home region
+            {deployingPresidency} is not allowed to deploy into this region: You
+            cannot deploy to a region that is not adjacent to a region that is
+            controlled by your presidency or is not your home region.
           </Typography>
         );
       }
     }
+  };
+
+  const handleSuccessfulDeployToCompanyControlledRegion = () => {
+    const newRegionArray = regions.filter((r) => r.id !== targetRegion.id);
+    targetRegion.unrest = 0;
+    setRegions([...newRegionArray, targetRegion]);
+  };
+
+  const handleSuccessfulDeployToDominatedRegion = () => {
+    const dominator = regions.find((r) => r.id === targetRegion.dominator);
+
+    if (!dominator) {
+      console.error(
+        "handleSuccessfulDeployToDominatedRegion: Dominator is undefined!"
+      );
+      return;
+    }
+
+    if (doesLossOfRegionCauseEmpireShatter(targetRegion, regions)) {
+      dominator.status = RegionStatus.Sovereign;
+    }
+
+    const newRegionArray = regions.filter(
+      (r) => r.id !== targetRegion.id && r.id !== dominator?.id
+    );
+    targetRegion.unrest = 0;
+    targetRegion.lootAvailable = false;
+    targetRegion.status = RegionStatus.CompanyControlled;
+    targetRegion.towerLevel = 0;
+    targetRegion.dominator = undefined;
+    targetRegion.controllingPresidency = deployingPresidency;
+
+    setRegions([...newRegionArray, targetRegion, dominator]);
+  };
+
+  const handleSuccessfulDeployToSovereignRegion = () => {
+    const newRegionArray = regions.filter((r) => r.id !== targetRegion.id);
+    targetRegion.unrest = 0;
+    targetRegion.lootAvailable = false;
+    targetRegion.status = RegionStatus.CompanyControlled;
+    targetRegion.towerLevel = 0;
+    targetRegion.controllingPresidency = deployingPresidency;
+    setRegions([...newRegionArray, targetRegion]);
+  };
+
+  const handleSuccessfulDeployToCapitalRegion = () => {
+    const dominatedRegions = regions.filter(
+      (r) => r.dominator === targetRegion.id
+    );
+
+    targetRegion.unrest = 0;
+    targetRegion.lootAvailable = false;
+    targetRegion.status = RegionStatus.CompanyControlled;
+    targetRegion.towerLevel = 0;
+    targetRegion.dominator = undefined;
+    targetRegion.controllingPresidency = deployingPresidency;
+    const newRegionArray = regions.filter(
+      (r) => r.id !== targetRegion.id && !dominatedRegions.includes(r)
+    );
+
+    const modifiedDominatedRegions: Region[] = [];
+
+    for (const region of dominatedRegions) {
+      region.dominator = undefined;
+      region.status = RegionStatus.Sovereign;
+      modifiedDominatedRegions.push(region);
+    }
+
+    setRegions([...newRegionArray, ...modifiedDominatedRegions, targetRegion]);
   };
 
   const handleSuccessfulDeploy = () => {
@@ -193,8 +262,37 @@ export const DeployDialog = (props: DeployDialogProps) => {
     setDeploySuccess(false);
   };
 
+  const deployRedirectElephant = () => {
+    if (
+      elephant.MainRegion === targetRegion.id &&
+      elephant.TargetRegion !== undefined
+    ) {
+      setElephant({ MainRegion: targetRegion.id, TargetRegion: undefined });
+    }
+  };
+
   const handleConfirmResults = () => {
-    props.onConfirmResults(deployType, deploySuccess, deployingPresidency);
+    if (deploySuccess) {
+      switch (deployType) {
+        case DeployType.CompanyControlledWithoutUnrest:
+          handleSuccessfulDeployToCompanyControlledRegion();
+          break;
+        case DeployType.CompanyControlledWithUnrest:
+          handleSuccessfulDeployToCompanyControlledRegion();
+          break;
+        case DeployType.Dominated:
+          handleSuccessfulDeployToDominatedRegion();
+          break;
+        case DeployType.Sovereign:
+          handleSuccessfulDeployToSovereignRegion();
+          break;
+        case DeployType.EmpireCapital:
+          handleSuccessfulDeployToCapitalRegion();
+          break;
+      }
+      deployRedirectElephant();
+    }
+    props.onConfirm();
   };
 
   const renderDeployPage = () => {
@@ -202,44 +300,40 @@ export const DeployDialog = (props: DeployDialogProps) => {
       case DeployPage.SelectPresidency:
         return (
           <>
-            <DialogContent>
-              <FormControl>
-                <FormLabel>Select Deploying Presidency: </FormLabel>
-                <RadioGroup
-                  onChange={(e) => {
-                    setDeployingResidency(e.target.value as Presidency);
-                  }}
-                  value={deployingPresidency}
-                >
-                  <FormControlLabel
-                    value={Presidency.BengalPresidency}
-                    control={<Radio />}
-                    label={"Bengal Presidency"}
-                  />
-                  <FormControlLabel
-                    value={Presidency.BombayPresidency}
-                    control={<Radio />}
-                    label={"Bombay Presidency"}
-                  />
-                  <FormControlLabel
-                    value={Presidency.MadrasPresidency}
-                    control={<Radio />}
-                    label={"Madras Presidency"}
-                  />
-                </RadioGroup>
-              </FormControl>
-              <DeployMessage />
+            <DialogContent sx={{ minHeight: "300px" }}>
+              <Typography gutterBottom>Select Deploying Presidency:</Typography>
+              <Box display={"flex"} justifyContent={"space-around"}>
+                <ArmyButton
+                  presidency={Presidency.BengalPresidency}
+                  selectedPresidency={deployingPresidency}
+                  setSelectedPresidency={setDeployingResidency}
+                />
+
+                <ArmyButton
+                  presidency={Presidency.BombayPresidency}
+                  selectedPresidency={deployingPresidency}
+                  setSelectedPresidency={setDeployingResidency}
+                />
+                <ArmyButton
+                  presidency={Presidency.MadrasPresidency}
+                  selectedPresidency={deployingPresidency}
+                  setSelectedPresidency={setDeployingResidency}
+                />
+              </Box>
+              <Box sx={{ mt: 2 }}>
+                <DeployMessage />
+              </Box>
             </DialogContent>
-            <DialogActions>
+            <DialogActions sx={{ justifyContent: "space-around" }}>
+              <Button variant="outlined" onClick={props.onConfirm}>
+                Cancel
+              </Button>
               <Button
                 variant="contained"
                 disabled={!isDeployAllowed()}
                 onClick={() => setDeployPage(DeployPage.Deploy)}
               >
-                Next
-              </Button>
-              <Button variant="outlined" onClick={props.onCancel}>
-                Cancel
+                Deploy
               </Button>
             </DialogActions>
           </>
@@ -268,10 +362,8 @@ export const DeployDialog = (props: DeployDialogProps) => {
             <DialogContent>
               <DeployResult
                 deployingPresidency={deployingPresidency}
-                targetRegion={props.targetRegion}
-                regions={props.regions}
+                targetRegion={targetRegion}
                 deploySuccessful={deploySuccess}
-                elephant={props.elephant}
               />
             </DialogContent>
             <DialogActions>
@@ -294,16 +386,53 @@ export const DeployDialog = (props: DeployDialogProps) => {
   );
 };
 
+const ArmyButton = (props: {
+  presidency: Presidency;
+  selectedPresidency: Presidency;
+  setSelectedPresidency: (presidency: Presidency) => void;
+}) => {
+  const selected = props.presidency === props.selectedPresidency;
+
+  return (
+    <Card
+      elevation={selected ? 2 : 0}
+      sx={{
+        width: "200px",
+        background: selected ? "lightgrey" : "white",
+        borderRadius: "10px",
+        border: selected ? "4px solid black" : "1px solid black",
+      }}
+    >
+      <CardActionArea
+        onClick={() => props.setSelectedPresidency(props.presidency)}
+      >
+        <CardContent sx={{ alignContent: "center", justifyContent: "center" }}>
+          <Typography textAlign={"center"} variant="h6">
+            {props.presidency}
+          </Typography>
+          <Typography textAlign={"center"} variant="h6">
+            Army
+          </Typography>
+        </CardContent>
+      </CardActionArea>
+    </Card>
+  );
+};
+
 const DeployDialogContent = (props: {
   deployType: DeployType;
   presidency: Presidency;
   defenseStrength: number;
 }) => {
   return (
-    <>
-      <Typography>This regions strength is {props.defenseStrength}</Typography>
-
+    <DialogContent sx={{ minHeight: "300px" }}>
       <List>
+        <ListItem>
+          <Typography>
+            <b>Region Strength:</b> {props.defenseStrength}
+          </Typography>
+        </ListItem>
+
         <ListItem>
           <Typography>
             <b>Exhaust Pieces:</b> Exhaust Officers and Regiments in{" "}
@@ -325,7 +454,7 @@ const DeployDialogContent = (props: {
           </Typography>
         </ListItem>
       </List>
-    </>
+    </DialogContent>
   );
 };
 
