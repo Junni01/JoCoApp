@@ -1,8 +1,13 @@
 import { useContext, useState } from "react";
-import { Elephant, Region, RegionName, RegionStatus, SeaZone } from "../Types";
+import {
+  Region,
+  RegionName,
+  RegionStatus,
+  RegionSymbol,
+  SeaZone,
+} from "../Types";
 import {
   Button,
-  Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
@@ -16,24 +21,20 @@ import {
   calculateEmpireStrength,
   doesLossOfRegionCauseEmpireShatter,
   getEmpireDominatedRegionIds,
+  marchElephant,
 } from "../Helpers";
 import { EventDialog } from "../DialogStyles";
 
-type ForeignInvasionEventProps = {
-  regions: Region[];
-  setRegions: (regions: Region[]) => void;
-  elephant: Elephant;
-  setElephant: (elephant: Elephant) => void;
-  drawStackRegion: Region;
-  onOk: () => void;
-};
-
-export const ForeignInvasionEvent = (props: ForeignInvasionEventProps) => {
+export const ForeignInvasionEvent = () => {
   enum ForeignInvasionPage {
     InvasionRegions,
     InvasionResolve,
     InvasionResults,
   }
+
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+
+  const { regions, drawStackRegion, discardEvent } = globalEffectsContext;
 
   const rollForeignInvasion = () => {
     const stormDieResult = StormDie[Math.floor(Math.random() * 6)];
@@ -48,18 +49,16 @@ export const ForeignInvasionEvent = (props: ForeignInvasionEventProps) => {
       case SeaZone.All:
         return [RegionName.Bengal, RegionName.Bombay, RegionName.Madras];
       case SeaZone.None:
-        return [props.drawStackRegion.id];
+        return [drawStackRegion.id];
       default:
         console.error("Invalid SeaZone");
         return [];
     }
   };
 
-  const [foreignInvasionRegions, setForeignInvasionRegions] = useState<
-    Region[]
-  >(
+  const [foreignInvasionRegions] = useState<Region[]>(
     rollForeignInvasion().map(
-      (regionId) => props.regions.find((r) => r.id === regionId)!
+      (regionId) => regions.find((r) => r.id === regionId)!
     ) as Region[]
   );
   const [foreignInvasionPage, setForeignInvasionPage] =
@@ -69,26 +68,53 @@ export const ForeignInvasionEvent = (props: ForeignInvasionEventProps) => {
     switch (foreignInvasionPage) {
       case ForeignInvasionPage.InvasionRegions:
         return (
-          <ForeignInvasionRegions
-            affectedRegions={foreignInvasionRegions}
-            handleConfirm={() =>
-              setForeignInvasionPage(ForeignInvasionPage.InvasionResolve)
-            }
-            handleCancel={props.onOk}
-          />
+          <>
+            <DialogContent>
+              <Typography>
+                The following regions are affected by the foreign invasion:
+              </Typography>
+              <ul>
+                {foreignInvasionRegions.map((region) => (
+                  <li key={region.id}>{region.id}</li>
+                ))}
+              </ul>
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={() =>
+                  setForeignInvasionPage(ForeignInvasionPage.InvasionResolve)
+                }
+              >
+                Next
+              </Button>
+            </DialogActions>
+          </>
         );
       case ForeignInvasionPage.InvasionResolve:
         return (
           <ForeignInvasionResolve
             affectedRegions={foreignInvasionRegions}
-            regions={props.regions}
-            handleConfirm={props.onOk}
+            handleConfirm={() => {
+              setForeignInvasionPage(ForeignInvasionPage.InvasionResults);
+            }}
           />
         );
-        break;
       case ForeignInvasionPage.InvasionResults:
-        return <div></div>;
+        return (
+          <>
+            <DialogContent>
+              <Typography>Foreign Invasions resolved</Typography>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleConfirmEvent}>Ok</Button>
+            </DialogActions>
+          </>
+        );
     }
+  };
+
+  const handleConfirmEvent = () => {
+    discardEvent();
   };
 
   return (
@@ -99,45 +125,105 @@ export const ForeignInvasionEvent = (props: ForeignInvasionEventProps) => {
   );
 };
 
-const ForeignInvasionRegions = (props: {
-  affectedRegions: Region[];
-  handleConfirm: () => void;
-  handleCancel: () => void;
-}) => {
-  console.log("ForeignInvasionRegions", props.affectedRegions);
-  return (
-    <>
-      <DialogContent>
-        <Typography>
-          The following regions are affected by the foreign invasion:
-        </Typography>
-        <ul>
-          {props.affectedRegions.map((region) => (
-            <li key={region.id}>{region.id}</li>
-          ))}
-        </ul>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={props.handleConfirm}>Confirm</Button>
-        <Button onClick={props.handleCancel}>Cancel</Button>
-      </DialogActions>
-    </>
-  );
-};
-
 export const ForeignInvasionResolve = (props: {
   affectedRegions: Region[];
-  regions: Region[];
   handleConfirm: () => void;
 }) => {
   const [invadedRegionIndex, setInvadedRegionIndex] = useState(0);
+  const activeRegion = props.affectedRegions[invadedRegionIndex];
+
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, drawStackRegion, setElephant, setRegions } =
+    globalEffectsContext;
+
+  const handleInvasionAgainstCompany = (
+    invasionSuccessful: boolean,
+    invasionStrength: number
+  ) => {
+    if (invasionSuccessful) {
+      {
+        activeRegion.status = RegionStatus.Sovereign;
+        activeRegion.controllingPresidency = undefined;
+        activeRegion.towerLevel = Math.floor(invasionStrength / 2);
+        activeRegion.unrest = 0;
+
+        const newRegionArray = regions.filter((r) => r.id !== activeRegion.id);
+        setRegions([...newRegionArray, activeRegion]);
+      }
+
+      if (elephant.MainRegion === activeRegion.id) {
+        const newElephant = marchElephant(
+          drawStackRegion,
+          regions,
+          RegionSymbol.Circle
+        );
+
+        if (newElephant !== undefined) {
+          setElephant(newElephant);
+        } else {
+          console.error("Invalid Elephant March");
+        }
+      }
+    }
+  };
+
+  const handleInvasionAgainstIndia = (
+    invasionSuccessful: boolean,
+    invasionStrength: number
+  ) => {
+    if (invasionSuccessful) {
+      if (activeRegion.status === RegionStatus.EmpireCapital) {
+        const dominatedRegions = regions.filter(
+          (r) => r.dominator === activeRegion.id
+        );
+
+        dominatedRegions.forEach((r) => {
+          r.status = RegionStatus.Sovereign;
+          r.dominator = undefined;
+        });
+
+        const newRegions = regions.filter(
+          (r) => !dominatedRegions.includes(r) && r.id !== activeRegion.id
+        );
+
+        activeRegion.status = RegionStatus.Sovereign;
+        activeRegion.towerLevel = Math.floor(invasionStrength / 2);
+        setRegions([...newRegions, ...dominatedRegions, activeRegion]);
+      } else if (activeRegion.status === RegionStatus.Dominated) {
+        const dominator = regions.find((r) => r.id === activeRegion.dominator);
+        if (doesLossOfRegionCauseEmpireShatter(activeRegion, regions)) {
+          dominator!.status = RegionStatus.Sovereign;
+        }
+        activeRegion.status = RegionStatus.Sovereign;
+        activeRegion.dominator = undefined;
+        activeRegion.towerLevel = Math.floor(invasionStrength / 2);
+        const newRegions = regions.filter(
+          (r) => r.id !== activeRegion.id && r.id !== activeRegion.dominator
+        );
+        setRegions([...newRegions, activeRegion, dominator!]);
+      } else {
+        const newRegions = regions.filter((r) => r.id !== activeRegion.id);
+        activeRegion.status = RegionStatus.Sovereign;
+        activeRegion.towerLevel = Math.floor(invasionStrength / 2);
+        setRegions([...newRegions, activeRegion]);
+      }
+    }
+  };
 
   const handleInvasionResolution = (
     invasionDefeated: boolean,
     invasionStrength: number
   ) => {
-    setInvadedRegionIndex(invadedRegionIndex + 1);
+    if (
+      props.affectedRegions[invadedRegionIndex].status ===
+      RegionStatus.CompanyControlled
+    ) {
+      handleInvasionAgainstCompany(invasionDefeated, invasionStrength);
+    } else {
+      handleInvasionAgainstIndia(invasionDefeated, invasionStrength);
+    }
 
+    setInvadedRegionIndex(invadedRegionIndex + 1);
     if (invadedRegionIndex >= props.affectedRegions.length - 1) {
       console.log("All invasions resolved");
       props.handleConfirm();
@@ -150,15 +236,15 @@ export const ForeignInvasionResolve = (props: {
   ) {
     return (
       <ForeignInvasionAgainstCompany
-        affectedRegion={props.affectedRegions[invadedRegionIndex]}
+        affectedRegion={activeRegion}
         handleConfirm={handleInvasionResolution}
       />
     );
   } else {
     return (
       <ForeignInvasionAgainstIndia
-        affectedRegion={props.affectedRegions[invadedRegionIndex]}
-        regions={props.regions}
+        affectedRegion={activeRegion}
+        regions={regions}
         handleConfirm={handleInvasionResolution}
       />
     );
@@ -182,6 +268,11 @@ const ForeignInvasionAgainstCompany = (props: {
   const handleInvasionResolution = (invasionDefeated: boolean) => {
     setInvasionDefeated(invasionDefeated);
     setShowResults(true);
+  };
+
+  const handleConfirmResults = () => {
+    setShowResults(false);
+    props.handleConfirm(invasionDefeated, invasionStrength);
   };
 
   if (showResults) {
@@ -256,13 +347,7 @@ const ForeignInvasionAgainstCompany = (props: {
           )}
         </DialogContent>
         <DialogActions>
-          <Button
-            onClick={() =>
-              props.handleConfirm(invasionDefeated, invasionStrength)
-            }
-          >
-            Confirm
-          </Button>
+          <Button onClick={() => handleConfirmResults()}>Confirm</Button>
         </DialogActions>
       </>
     );
@@ -299,19 +384,13 @@ const ForeignInvasionAgainstIndia = (props: {
 
   const getDefenseStrength = () => {
     switch (props.affectedRegion.status) {
-      case RegionStatus.CompanyControlled:
-        console.error("Invalid status");
-        return 0;
       case RegionStatus.Dominated:
+      case RegionStatus.EmpireCapital:
         return (
           calculateEmpireStrength(props.affectedRegion.id, props.regions) ?? 0
         );
       case RegionStatus.Sovereign:
         return props.affectedRegion.towerLevel;
-      case RegionStatus.EmpireCapital:
-        return (
-          calculateEmpireStrength(props.affectedRegion.id, props.regions) ?? 0
-        );
       default:
         console.error("Invalid status");
         return 0;

@@ -160,7 +160,12 @@ export const GlobalEffectsProvider = (props: { children: React.ReactNode }) => {
 
   const drawStackRegion =
     regions.find((r) => r.id === eventDeck[eventDeck.length - 1].Region) ??
-    regions[0];
+    madras;
+
+  console.log("GlobalEffectsProvider: regions", eventDeck);
+  console.log(
+    regions.find((r) => r.id === eventDeck[eventDeck.length - 1].Region)
+  );
 
   return (
     <GlobalEffectsContext.Provider

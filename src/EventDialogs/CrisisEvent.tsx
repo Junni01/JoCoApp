@@ -666,7 +666,7 @@ const IndiaInvadesCompany = (props: {
               {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
             </Typography>
             <InvasionToCompanyControlledResults
-              invasionSuccessful={mainCrisisWon}
+              invasionPrevented={mainCrisisWon}
               invadedRegion={defender}
               onOk={handleMainCrisisDone}
             />
@@ -710,11 +710,11 @@ const IndiaInvadesCompany = (props: {
 };
 
 const InvasionToCompanyControlledResults = (props: {
-  invasionSuccessful: boolean;
+  invasionPrevented: boolean;
   onOk: () => void;
   invadedRegion: Region;
 }) => {
-  if (props.invasionSuccessful) {
+  if (!props.invasionPrevented) {
     return (
       <>
         <DialogContent>
@@ -729,7 +729,7 @@ const InvasionToCompanyControlledResults = (props: {
     return (
       <>
         <DialogContent>
-          <Typography>Attack on {props.invadedRegion.id} successful</Typography>
+          <Typography>Attack on {props.invadedRegion.id} defeated</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={props.onOk}>ok</Button>

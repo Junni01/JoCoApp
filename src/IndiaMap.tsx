@@ -45,17 +45,12 @@ import { ForeignInvasionEvent } from "./EventDialogs/ForeignInvasionEvent";
 import { EventStack } from "./EventStack";
 import { EventsInIndiaDialog } from "./EventsInIndiaDialog";
 
-export const IndiaMap = (props: {
-  scenario: Scenario;
-  initialEventDeck: EventCard[];
-}) => {
+export const IndiaMap = () => {
   const globalEffectsContext = useContext(GlobalEffectsContext);
   const regions = globalEffectsContext.regions;
   const elephant = globalEffectsContext.elephant;
   const eventDeck = globalEffectsContext.eventDeck;
-  const drawStackRegion = globalEffectsContext.drawStackRegion;
   const setRegions = globalEffectsContext.setRegions;
-  const setElephant = globalEffectsContext.setElephant;
   const activeEvent = globalEffectsContext.activeEvent;
   const executeElephantsMarch = globalEffectsContext.executeElephantsMarch;
   const discardEvent = globalEffectsContext.discardEvent;
@@ -596,16 +591,7 @@ export const IndiaMap = (props: {
           />
         );
       case EventType.ForeignInvasion:
-        return (
-          <ForeignInvasionEvent
-            onOk={() => {}}
-            elephant={elephant}
-            regions={regions}
-            drawStackRegion={drawStackRegion}
-            setRegions={setRegions}
-            setElephant={setElephant}
-          />
-        );
+        return <ForeignInvasionEvent />;
 
       default:
         return;

@@ -26,23 +26,21 @@ function App() {
 
   const [scenario, setScenario] = useState<Scenario>(Scenario.SeventeenTen);
 
-  const initialEventDeck = getInitialEventDeck();
-  const shuffledEventDeck = shuffleEventPile(initialEventDeck);
-
   const availableLeaders = shuffleLeaders(Leaders);
 
   const globalEffects = useContext(GlobalEffectsContext);
 
   const handleSetScenario = (scenario: Scenario) => {
     setScenario(scenario);
-    globalEffects.setEventDeck(shuffledEventDeck);
-    globalEffects.setElephant(getElephantInitialPosition(scenario));
-    globalEffects.setRegions(getRegionData(scenario));
   };
 
   const handleStartGame = () => {
+    const initialEventDeck = getInitialEventDeck();
+    const shuffledEventDeck = shuffleEventPile(initialEventDeck);
+
     globalEffects.setEventDeck(shuffledEventDeck);
     globalEffects.setElephant(getElephantInitialPosition(scenario));
+    globalEffects.setRegions(getRegionData(scenario));
 
     const regions = getRegionData(scenario);
 
@@ -59,9 +57,7 @@ function App() {
 
   return (
     <>
-      {!SetupDialogOpen && (
-        <IndiaMap scenario={scenario} initialEventDeck={shuffledEventDeck} />
-      )}
+      {!SetupDialogOpen && <IndiaMap />}
       {SetupDialogOpen && (
         <Dialog open={true}>
           <DialogContent>
