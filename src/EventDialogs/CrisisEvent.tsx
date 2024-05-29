@@ -7,6 +7,7 @@ import {
   Typography,
 } from "@mui/material";
 import {
+  IsEmpireAtMaxSize,
   calculateEmpireStrength,
   doesLossOfRegionCauseEmpireShatter,
   getCrisisType,
@@ -24,6 +25,7 @@ import { useContext, useState } from "react";
 import { RebellionInCompanyControlled } from "./Rebellions";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
 import { EventDialog } from "../DialogStyles";
+import { ElephantsMarch } from "../ElephantsMarch";
 
 export const CrisisEvent = (props: {
   regions: Region[];
@@ -35,27 +37,31 @@ export const CrisisEvent = (props: {
     props.onOk(false, rebellions);
   };
 
-  const crisisType = getCrisisType(props.elephant, props.regions);
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const {
+    regions,
+    elephant,
+    setRegions,
+    activeEvent,
+    executeElephantsMarch,
+    discardEvent,
+  } = globalEffectsContext;
+  const { imperialAmbitions, setImperialAmbitions } = useState<boolean>(false);
+
+  enum Page {
+    Crisis,
+    ElephantsMarch,
+  }
+
+  const [page, setPage] = useState<Page>(Page.Crisis);
+
+  const crisisType = getCrisisType(elephant, regions);
   const renderDialog = () => {
     switch (crisisType) {
       case CrisisType.SovereignInvadesSovereign:
-        return (
-          <SovereignInvadesSovereign
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            onOk={() => props.onOk(false, [])}
-          />
-        );
+        return <SovereignInvadesSovereign />;
       case CrisisType.SovereignInvadesDominated:
-        return (
-          <SovereignInvadesDominated
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            onOk={() => props.onOk(false, [])}
-          />
-        );
+        return <SovereignInvadesDominated />;
 
       case CrisisType.SovereignInvadesEmpireCapital:
         return (
@@ -143,108 +149,201 @@ export const CrisisEvent = (props: {
         return;
     }
   };
+
+  const ElephantsMarchContent = () => {
+    return (
+      <>
+        <DialogContent>
+          <Typography>
+            <ElephantsMarch imperialAmbitions={imperialAmbitions} />
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => handleElephantsMarchConfirm()}>Ok</Button>
+        </DialogActions>
+      </>
+    );
+  };
+
+  const handleCrisisDialogConfirm = (imperialAmbitions: boolean) => {
+    setImperialAmbitions(imperialAmbitions);
+    setPage(Page.ElephantsMarch);
+  };
+
+  const handleElephantsMarchConfirm = () => {
+    if (imperialAmbitions) {
+      executeElephantsMarch(true);
+    } else {
+      executeElephantsMarch(false);
+    }
+    discardEvent();
+  };
+
   return (
     <EventDialog>
       <DialogTitle>
-        Event: Crisis (Strength: {props.event.strength}, Symbol:{" "}
-        {props.event.symbol.toString()})
+        {page === Page.Crisis
+          ? `Event: Crisis (Strength: ${
+              props.event.strength
+            }, Symbol:${activeEvent?.symbol.toString()}`
+          : "Elephants March"}
       </DialogTitle>
-      {renderDialog()}
+      {page === Page.Crisis && renderDialog()}
+      {page === Page.ElephantsMarch && <ElephantsMarchContent />}
     </EventDialog>
   );
 };
 
 const SovereignInvadesSovereign = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  onOk: () => void;
+  handleDialogConfirm: (imperialAmbition: boolean) => void;
 }) => {
-  const attacker = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, setRegions, activeEvent } = globalEffectsContext;
+
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
   if (!attacker || !defender) {
     console.error("EventDialog: Attacked of defender not found!");
     return;
   }
 
-  const attackStrength = attacker.towerLevel + props.event.strength;
-  const defenseStrength = defender?.towerLevel ?? 0;
-  const actionSuccessful = attackStrength > defenseStrength;
+  const attackStrength = attacker.towerLevel + activeEvent?.strength!;
+  const defenseStrength = defender.towerLevel;
+  const invasionSuccessful = attackStrength > defenseStrength;
+
+  const executeSovereignInvadesSovereign = () => {
+    const newRegions = regions.filter(
+      (r) => r.id != attacker.id && r.id != defender.id
+    );
+
+    if (invasionSuccessful) {
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+
+    setRegions([...newRegions, attacker, defender]);
+
+    props.handleDialogConfirm(invasionSuccessful);
+  };
+
   return (
     <>
       <DialogContent>
         <Typography>
-          {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+          {attacker.id} invades {defender.id}
         </Typography>
         <Typography>
-          {attacker.id} strength {attackStrength} against {defender?.id}{" "}
-          strength {defenseStrength}
+          {attacker.id} strength {attackStrength} against {defender.id} strength{" "}
+          {defenseStrength}
         </Typography>
-        {actionSuccessful ? (
-          <Typography>
-            {attacker.id} successfully invades {defender?.id}. Place large
-            empire flag on {attacker.id} and small empire flag on {defender?.id}{" "}
-          </Typography>
+        {invasionSuccessful ? (
+          <>
+            <Typography>
+              {attacker.id} successfully invades {defender?.id}. Place large
+              empire flag on {attacker.id} and small empire flag on{" "}
+              {defender.id}
+            </Typography>
+            <Typography>
+              <ElephantsMarch imperialAmbitions={true} />
+            </Typography>
+          </>
         ) : (
-          <Typography>
-            {attacker.id} fails to invade {defender?.id}.{" "}
-            {attacker.towerLevel > 0
-              ? `Remove one tower level from ${attacker.id}`
-              : ""}
-          </Typography>
+          <>
+            <Typography>
+              {attacker.id} fails to invade {defender?.id}.{" "}
+              {attacker.towerLevel > 0
+                ? `Remove one tower level from ${attacker.id}`
+                : ""}
+            </Typography>
+            <ElephantsMarch imperialAmbitions={false} />
+          </>
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={props.onOk}>Ok</Button>
+        <Button onClick={executeSovereignInvadesSovereign}>Ok</Button>
       </DialogActions>
     </>
   );
 };
+
 const SovereignInvadesDominated = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  onOk: () => void;
+  handleDialogConfirm: (imperialAmbition: boolean) => void;
 }) => {
-  const attacker = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, setRegions, activeEvent } = globalEffectsContext;
+
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
   if (!attacker || !defender) {
     console.error("EventDialog: Attacked of defender not found!");
     return;
   }
 
-  const attackStrength = attacker.towerLevel + props.event.strength;
-  const defenseStrength =
-    calculateEmpireStrength(defender.id, props.regions) ?? 0;
-  const actionSuccessful = attackStrength > defenseStrength;
+  const attackStrength = attacker.towerLevel + activeEvent?.strength!;
+  const defenseStrength = calculateEmpireStrength(defender.id, regions) ?? 0;
+  const invasionSuccessful = attackStrength > defenseStrength;
+
+  const defendingEmpireShatters = doesLossOfRegionCauseEmpireShatter(
+    defender,
+    regions
+  );
+
+  const executeSovereignInvadesDominated = () => {
+    const defenderDominator = regions.find((r) => r.id === defender.dominator);
+
+    if (!defenderDominator) {
+      console.error("EventDialog: Attacked of defender dominator not found!");
+      return;
+    }
+
+    const newRegions = regions.filter(
+      (r) =>
+        r.id !== attacker.id &&
+        r.id !== defender.id &&
+        r.id !== defenderDominator.id
+    );
+
+    if (invasionSuccessful) {
+      if (defendingEmpireShatters) {
+        defenderDominator.status = RegionStatus.Sovereign;
+      }
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegions, attacker, defender, defenderDominator]);
+    props.handleDialogConfirm(invasionSuccessful);
+  };
+
   return (
     <>
       <DialogContent>
         <Typography>
-          {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+          {attacker.id} invades {defender.id}
         </Typography>
         <Typography>
           {attacker.id} strength {attackStrength} against {defender?.id}{" "}
           Empire's strength {defenseStrength}
         </Typography>
-        {actionSuccessful ? (
+        {invasionSuccessful ? (
           <>
             <Typography>
-              {attacker.id} successfully invades {defender?.id}. Place large
+              {attacker.id} successfully invades {defender.id}. Place large
               empire flag on {attacker.id} and replace small empire flag on
-              {defender?.id} with the new empire's flag.
+              {defender.id} with the new empire's flag.
             </Typography>
-            {doesLossOfRegionCauseEmpireShatter(defender, props.regions) && (
+            {defendingEmpireShatters && (
               <Typography>
                 {defender.dominator} Empire shatters: Remove large flag from{" "}
                 {defender.dominator}
@@ -252,47 +351,82 @@ const SovereignInvadesDominated = (props: {
             )}
           </>
         ) : (
-          <Typography>
-            {attacker.id} fails to invade {defender?.id}.{" "}
-            {attacker.towerLevel > 0
-              ? `Remove one tower level from ${attacker.id}`
-              : ""}
-          </Typography>
+          <>
+            <Typography>
+              {attacker.id} fails to invade {defender.id}.{" "}
+              {attacker.towerLevel > 0
+                ? `Remove one tower level from ${attacker.id}`
+                : ""}
+            </Typography>
+          </>
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={props.onOk}>Ok</Button>
+        <Button onClick={executeSovereignInvadesDominated}>Ok</Button>
       </DialogActions>
     </>
   );
 };
+
 const SovereignInvadesEmpireCapital = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  onOk: () => void;
+  handleDialogConfirm: (imperialAmbition: boolean) => void;
 }) => {
-  const attacker = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, setRegions, activeEvent } = globalEffectsContext;
+
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
   if (!attacker || !defender) {
     console.error("EventDialog: Attacked of defender not found!");
     return;
   }
 
-  const attackStrength = attacker.towerLevel + props.event.strength;
-  const defenseStrength =
-    calculateEmpireStrength(defender.id, props.regions) ?? 0;
+  const attackStrength = attacker.towerLevel + activeEvent?.strength!;
+  const defenseStrength = calculateEmpireStrength(defender.id, regions) ?? 0;
   const actionSuccessful = attackStrength > defenseStrength;
+
+  const executeSovereignInvadesEmpireCapital = () => {
+    const defenderDominatedRegions = regions.filter(
+      (r) => r.dominator === defender.id
+    );
+
+    const newRegions = regions.filter(
+      (r) =>
+        r.id != attacker.id &&
+        r.id != defender.id &&
+        !defenderDominatedRegions.includes(r)
+    );
+
+    if (actionSuccessful) {
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+
+      defenderDominatedRegions.forEach((r) => {
+        r.dominator = undefined;
+        r.status = RegionStatus.Sovereign;
+      });
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+
+    setRegions([
+      ...newRegions,
+      attacker,
+      defender,
+      ...defenderDominatedRegions,
+    ]);
+    props.handleDialogConfirm(actionSuccessful);
+  };
+
   return (
     <>
       <DialogContent>
         <Typography>
-          {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+          {attacker.id} invades {defender.id}
         </Typography>
         <Typography>
           {attacker.id} strength {attackStrength} against {defender?.id} Empire
@@ -304,7 +438,7 @@ const SovereignInvadesEmpireCapital = (props: {
             empire flag on {attacker.id} and remove large empire flag from
             {defender?.id} and replace it with a new small empire flag. Empire
             Shatters : Remove small empire flags from:{" "}
-            {getEmpireDominatedRegionIds(defender.id, props.regions).join(",")}
+            {getEmpireDominatedRegionIds(defender.id, regions).join(",")}
           </Typography>
         ) : (
           <Typography>
@@ -316,23 +450,20 @@ const SovereignInvadesEmpireCapital = (props: {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={props.onOk}>Ok</Button>
+        <Button onClick={executeSovereignInvadesEmpireCapital}>Ok</Button>
       </DialogActions>
     </>
   );
 };
+
 const EmpireInvadesSovereign = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  onOk: () => void;
+  handleDialogConfirm: (imperialAmbition: boolean) => void;
 }) => {
-  const attacker = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, setRegions, activeEvent } = globalEffectsContext;
+
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
   if (!attacker || !defender) {
     console.error("EventDialog: Attacked of defender not found!");
@@ -340,15 +471,39 @@ const EmpireInvadesSovereign = (props: {
   }
 
   const attackStrength =
-    (calculateEmpireStrength(attacker.id, props.regions) ?? 0) +
-    props.event.strength;
+    (calculateEmpireStrength(attacker.id, regions) ?? 0) +
+    activeEvent?.strength!;
   const defenseStrength = defender.towerLevel;
   const actionSuccessful = attackStrength > defenseStrength;
+
+  const executeEmpireInvadesSovereign = () => {
+    const newRegions = regions.filter(
+      (r) => r.id != attacker.id && r.id != defender.id
+    );
+
+    const attackStrength =
+      (calculateEmpireStrength(attacker.id, regions) ?? 0) +
+      (activeEvent?.strength ?? 0);
+    const defenseStrength = defender.towerLevel;
+    const actionSuccessful = attackStrength > defenseStrength;
+
+    if (actionSuccessful) {
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegions, attacker, defender]);
+    props.handleDialogConfirm(actionSuccessful);
+  };
+
   return (
     <>
       <DialogContent>
         <Typography>
-          {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+          {attacker.id} invades {defender.id}
         </Typography>
         <Typography>
           {attacker.id} Empire strength {attackStrength} against {defender?.id}{" "}
@@ -369,24 +524,20 @@ const EmpireInvadesSovereign = (props: {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={props.onOk}>Ok</Button>
+        <Button onClick={executeEmpireInvadesSovereign}>Ok</Button>
       </DialogActions>
     </>
   );
 };
 
 const EmpireInvadesDominated = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  onOk: () => void;
+  handleDialogConfirm: (imperialAmbition: boolean) => void;
 }) => {
-  const attacker = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, setRegions, activeEvent } = globalEffectsContext;
+
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
   if (!attacker || !defender) {
     console.error("EventDialog: Attacked of defender not found!");
@@ -394,18 +545,52 @@ const EmpireInvadesDominated = (props: {
   }
 
   const attackStrength =
-    (calculateEmpireStrength(attacker.id, props.regions) ?? 0) +
-    props.event.strength;
-  const defenseStrength =
-    calculateEmpireStrength(defender.id, props.regions) ?? 0;
+    (calculateEmpireStrength(attacker.id, regions) ?? 0) +
+    activeEvent?.strength!;
+  const defenseStrength = calculateEmpireStrength(defender.id, regions) ?? 0;
   const actionSuccessful = attackStrength > defenseStrength;
+
+  const defendingEmpireShatters = doesLossOfRegionCauseEmpireShatter(
+    defender,
+    regions
+  );
+
+  const executeEmpireInvadesDominated = () => {
+    const defenderDominator = regions.find((r) => r.id === defender.dominator);
+
+    if (!defenderDominator) {
+      console.error("EventDialog: Attacked of defender dominator not found!");
+      return;
+    }
+    const newRegions = regions.filter(
+      (r) =>
+        r.id !== attacker.id &&
+        r.id !== defender.id &&
+        r.id !== defenderDominator.id
+    );
+
+    if (actionSuccessful) {
+      if (defendingEmpireShatters) {
+        defenderDominator.status = RegionStatus.Sovereign;
+      }
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegions, attacker, defender, defenderDominator]);
+    props.handleDialogConfirm(actionSuccessful);
+  };
+
   return (
     <>
       <DialogContent>
         <Typography>
-          {props.elephant.MainRegion} Empire invades{" "}
-          {props.elephant.TargetRegion} which is part of {defender.dominator}{" "}
-          empire
+          {elephant.MainRegion} Empire invades {elephant.TargetRegion} which is
+          part of {defender.dominator} empire
         </Typography>
         <Typography>
           {attacker.id} Empire strength {attackStrength} against{" "}
@@ -417,7 +602,7 @@ const EmpireInvadesDominated = (props: {
               {attacker.id} successfully invades {defender?.id}. Place{" "}
               {attacker.id} empire's small flag on {defender.id}
             </Typography>
-            {doesLossOfRegionCauseEmpireShatter(defender, props.regions) && (
+            {defendingEmpireShatters && (
               <Typography>
                 {defender.dominator} Empire shatters: Remove large flag from{" "}
                 {defender.dominator}
@@ -434,24 +619,20 @@ const EmpireInvadesDominated = (props: {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={props.onOk}>Ok</Button>
+        <Button onClick={executeEmpireInvadesDominated}>Ok</Button>
       </DialogActions>
     </>
   );
 };
 
 const EmpireCapitalInvadesEmpireCapital = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  onOk: () => void;
+  handleDialogConfirm: (imperialAmbition: boolean) => void;
 }) => {
-  const attacker = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, setRegions, activeEvent } = globalEffectsContext;
+
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
   if (!attacker || !defender) {
     console.error("EventDialog: Attacked of defender not found!");
@@ -459,17 +640,50 @@ const EmpireCapitalInvadesEmpireCapital = (props: {
   }
 
   const attackStrength =
-    (calculateEmpireStrength(attacker.id, props.regions) ?? 0) +
-    props.event.strength;
-  const defenseStrength =
-    calculateEmpireStrength(defender.id, props.regions) ?? 0;
+    (calculateEmpireStrength(attacker.id, regions) ?? 0) +
+    activeEvent?.strength!;
+  const defenseStrength = calculateEmpireStrength(defender.id, regions) ?? 0;
   const actionSuccessful = attackStrength > defenseStrength;
+
+  const executeEmpireCapitalInvadesEmpireCapital = () => {
+    const defenderDominatedRegions = regions.filter(
+      (r) => r.dominator === defender.id
+    );
+
+    const newRegions = regions.filter(
+      (r) =>
+        r.id != attacker.id &&
+        r.id != defender.id &&
+        !defenderDominatedRegions.includes(r)
+    );
+
+    if (actionSuccessful) {
+      defender.status = RegionStatus.Dominated;
+      defender.dominator = attacker.id;
+      defenderDominatedRegions.forEach((r) => {
+        r.dominator = undefined;
+        r.status = RegionStatus.Sovereign;
+      });
+    } else {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    }
+
+    setRegions([
+      ...newRegions,
+      attacker,
+      defender,
+      ...defenderDominatedRegions,
+    ]);
+    props.handleDialogConfirm(actionSuccessful);
+  };
+
   return (
     <>
       <DialogContent>
         <Typography>
-          {props.elephant.MainRegion} Empire invades{" "}
-          {props.elephant.TargetRegion} Empire Capital
+          {attacker.id} Empire invades {defender.id} Empire Capital
         </Typography>
         <Typography>
           {attacker.id} Empire strength {attackStrength} against {defender.id}{" "}
@@ -484,9 +698,7 @@ const EmpireCapitalInvadesEmpireCapital = (props: {
             <Typography>
               {defender.id} Empire shatters: Remove large flag from{" "}
               {defender.id} and remove small empire flags from:{" "}
-              {getEmpireDominatedRegionIds(defender.id, props.regions).join(
-                ","
-              )}
+              {getEmpireDominatedRegionIds(defender.id, regions).join(",")}
             </Typography>
           </>
         ) : (
@@ -499,37 +711,61 @@ const EmpireCapitalInvadesEmpireCapital = (props: {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={props.onOk}>Ok</Button>
+        <Button onClick={executeEmpireCapitalInvadesEmpireCapital}>Ok</Button>
       </DialogActions>
     </>
   );
 };
 
 const DominatedRebelsAgainstEmpire = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  onOk: () => void;
+  handleDialogConfirm: (imperialAmbition: boolean) => void;
 }) => {
-  const attacker = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, setRegions, activeEvent } = globalEffectsContext;
+
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
   if (!attacker || !defender) {
     console.error("EventDialog: Attacked of defender not found!");
     return;
   }
 
-  const attackStrength = attacker.towerLevel + props.event.strength;
+  const attackStrength = attacker.towerLevel + activeEvent?.strength!;
   const defenseStrength = defender.towerLevel;
   const actionSuccessful = attackStrength > defenseStrength;
+
+  const targetEmpireShatters = doesLossOfRegionCauseEmpireShatter(
+    attacker,
+    regions
+  );
+
+  const executeDominatedRebelsAgainstEmpire = () => {
+    const newRegions = regions.filter(
+      (r) => r.id != attacker.id && r.id != defender.id
+    );
+
+    if (actionSuccessful) {
+      if (targetEmpireShatters) {
+        defender.status = RegionStatus.Sovereign;
+      }
+      attacker.status = RegionStatus.Sovereign;
+      attacker.dominator = undefined;
+    } else {
+      if (defender.towerLevel > 0) {
+        defender.towerLevel = defender.towerLevel - 1;
+      }
+    }
+    setRegions([...newRegions, attacker, defender]);
+    props.handleDialogConfirm(false);
+  };
+
   return (
     <>
       <DialogContent>
-        <Typography>Rebellion in {props.elephant.MainRegion}</Typography>
+        <Typography>
+          {attacker.id} rebels against its dominator {defender.id}
+        </Typography>
         <Typography>
           {attacker.id} strength {attackStrength} against Empire Capital{" "}
           {defender?.id} strength {defenseStrength}
@@ -545,6 +781,12 @@ const DominatedRebelsAgainstEmpire = (props: {
               Close every open order in {attacker.id}. If all are already
               closed, resolve a Cascade.
             </Typography>
+            {targetEmpireShatters && (
+              <Typography>
+                {defender.id} Empire shatters: Remove large flag from{" "}
+                {defender.id}
+              </Typography>
+            )}
           </>
         ) : (
           <Typography>
@@ -556,7 +798,7 @@ const DominatedRebelsAgainstEmpire = (props: {
         )}
       </DialogContent>
       <DialogActions>
-        <Button onClick={props.onOk}>Ok</Button>
+        <Button onClick={executeDominatedRebelsAgainstEmpire}>Ok</Button>
       </DialogActions>
     </>
   );

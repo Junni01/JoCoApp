@@ -355,3 +355,18 @@ export const isValidDeployRegion = (
     (r) => r?.controllingPresidency === presidency
   );
 };
+
+export const IsEmpireAtMaxSize = (
+  targetEmpireRegion: Region,
+  regions: Region[]
+) => {
+  const empireRegions = regions.filter(
+    (r) => r.dominator === targetEmpireRegion.id
+  );
+
+  if (empireRegions.length > 4) {
+    console.error("Empire is over the max allowed size!");
+    return true;
+  }
+  return empireRegions.length === 4;
+};
