@@ -13,40 +13,24 @@ import {
   getCrisisType,
   getEmpireDominatedRegionIds,
 } from "../Helpers";
-import {
-  Region,
-  Elephant,
-  EventCard,
-  RegionStatus,
-  CrisisType,
-  Rebellion,
-} from "../Types";
+import { Region, RegionStatus, CrisisType, Rebellion } from "../Types";
 import { useContext, useState } from "react";
 import { RebellionInCompanyControlled } from "./Rebellions";
 import { GlobalEffectsContext } from "../GlobalEffectsContext";
 import { EventDialog } from "../DialogStyles";
 import { ElephantsMarch } from "../ElephantsMarch";
 
-export const CrisisEvent = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  onOk: (primaryCrisisWon: boolean, rebellions: Rebellion[]) => void;
-}) => {
-  const handleCompanyControlledRebels = (rebellions: Rebellion[]) => {
-    props.onOk(false, rebellions);
-  };
-
+export const CrisisEvent = (props: {}) => {
   const globalEffectsContext = useContext(GlobalEffectsContext);
   const {
     regions,
     elephant,
-    setRegions,
     activeEvent,
     executeElephantsMarch,
     discardEvent,
   } = globalEffectsContext;
-  const { imperialAmbitions, setImperialAmbitions } = useState<boolean>(false);
+
+  const [imperialAmbitions, setImperialAmbitions] = useState<boolean>(false);
 
   enum Page {
     Crisis,
@@ -59,86 +43,60 @@ export const CrisisEvent = (props: {
   const renderDialog = () => {
     switch (crisisType) {
       case CrisisType.SovereignInvadesSovereign:
-        return <SovereignInvadesSovereign />;
+        return (
+          <SovereignInvadesSovereign
+            handleDialogConfirm={handleCrisisDialogConfirm}
+          />
+        );
       case CrisisType.SovereignInvadesDominated:
-        return <SovereignInvadesDominated />;
+        return (
+          <SovereignInvadesDominated
+            handleDialogConfirm={handleCrisisDialogConfirm}
+          />
+        );
 
       case CrisisType.SovereignInvadesEmpireCapital:
         return (
           <SovereignInvadesEmpireCapital
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            onOk={() => props.onOk(false, [])}
+            handleDialogConfirm={handleCrisisDialogConfirm}
           />
         );
       case CrisisType.EmpireInvadesSovereign:
         return (
           <EmpireInvadesSovereign
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            onOk={() => props.onOk(false, [])}
+            handleDialogConfirm={handleCrisisDialogConfirm}
           />
         );
 
       case CrisisType.DominatedRebelsAgainstEmpire:
         return (
           <DominatedRebelsAgainstEmpire
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            onOk={() => props.onOk(false, [])}
-          />
-        );
-
-      case CrisisType.SovereignInvadesCompany:
-        return (
-          <IndiaInvadesCompany
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            attackerIsEmpire={false}
-            onOk={props.onOk}
-          />
-        );
-
-      case CrisisType.EmpireInvadesCompany:
-        return (
-          <IndiaInvadesCompany
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            attackerIsEmpire={true}
-            onOk={props.onOk}
-          />
-        );
-
-      case CrisisType.CompanyControlledRebels:
-        return (
-          <CompanyControlledRebels
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            handleConfirmResults={handleCompanyControlledRebels}
+            handleDialogConfirm={handleCrisisDialogConfirm}
           />
         );
       case CrisisType.EmpireInvadesDominated:
         return (
           <EmpireInvadesDominated
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            onOk={() => props.onOk(false, [])}
+            handleDialogConfirm={handleCrisisDialogConfirm}
           />
         );
       case CrisisType.EmpireCapitalInvadesEmpireCapital:
         return (
           <EmpireCapitalInvadesEmpireCapital
-            regions={props.regions}
-            elephant={props.elephant}
-            event={props.event}
-            onOk={() => props.onOk(false, [])}
+            handleDialogConfirm={handleCrisisDialogConfirm}
+          />
+        );
+      case CrisisType.SovereignInvadesCompany:
+      case CrisisType.EmpireInvadesCompany:
+        return (
+          <IndiaInvadesCompany
+            handleDialogConfirm={handleCrisisDialogConfirm}
+          />
+        );
+      case CrisisType.CompanyControlledRebels:
+        return (
+          <CompanyControlledRebels
+            handleDialogConfirm={handleCrisisDialogConfirm}
           />
         );
 
@@ -184,7 +142,7 @@ export const CrisisEvent = (props: {
       <DialogTitle>
         {page === Page.Crisis
           ? `Event: Crisis (Strength: ${
-              props.event.strength
+              activeEvent?.strength ?? "Unknown"
             }, Symbol:${activeEvent?.symbol.toString()}`
           : "Elephants March"}
       </DialogTitle>
@@ -803,27 +761,29 @@ const DominatedRebelsAgainstEmpire = (props: {
     </>
   );
 };
+
 const IndiaInvadesCompany = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  attackerIsEmpire: boolean;
-  onOk: (mainCrisisWon: boolean, rebellionResults: Rebellion[]) => void;
+  handleDialogConfirm: (imperialAmbition: boolean) => void;
 }) => {
   const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, setRegions, activeEvent, globalEffects } =
+    globalEffectsContext;
+  const [mainCrisisWon, setMainCrisisWon] = useState<boolean>(false);
+  const [mainCrisisResolved, setMainCrisisResolved] = useState<boolean>(false);
+  const [showMainCrisisResults, setShowMainCrisisResults] =
+    useState<boolean>(false);
 
-  const attacker = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const defender = props.regions.find(
-    (r) => r.id === props.elephant.TargetRegion
-  );
+  const [rebellionOutcomes, setRebellionOutcomes] = useState<Rebellion[]>([]);
+  const [rebellionIndex, setRebellionIndex] = useState<number>(0);
+
+  const attacker = regions.find((r) => r.id === elephant.MainRegion);
+  const defender = regions.find((r) => r.id === elephant.TargetRegion);
 
   if (!attacker || !defender) {
     console.error("EventDialog: Attacked of defender not found!");
     return;
   }
-  const regionsWithUnrest = props.regions.filter(
+  const regionsWithUnrest = regions.filter(
     (r) =>
       r.status === RegionStatus.CompanyControlled &&
       r.unrest > 0 &&
@@ -832,24 +792,69 @@ const IndiaInvadesCompany = (props: {
 
   console.log("regions with unrest", regionsWithUnrest);
 
-  const unrestStrength = globalEffectsContext.globalEffects.SepoyRecruitment
+  const unrestStrength = globalEffects.SepoyRecruitment
     ? defender.unrest * 2
     : defender.unrest;
 
-  const attackStrength = props.attackerIsEmpire
-    ? calculateEmpireStrength(attacker.id, props.regions) +
-      props.event.strength +
-      unrestStrength
-    : attacker.towerLevel + props.event.strength + unrestStrength;
+  const attackStrength =
+    attacker.status === RegionStatus.EmpireCapital
+      ? calculateEmpireStrength(attacker.id, regions) +
+        (activeEvent?.strength ?? 0) +
+        unrestStrength
+      : attacker.towerLevel + (activeEvent?.strength ?? 0) + unrestStrength;
 
-  const [mainCrisisWon, setMainCrisisWon] = useState<boolean>(false);
-  const [mainCrisisResolved, setMainCrisisResolved] = useState<boolean>(false);
-  const [showMainCrisisResults, setShowMainCrisisResults] =
-    useState<boolean>(false);
+  const executeIndiaInvadesCompany = () => {
+    if (!attacker || !defender) {
+      console.error("EventDialog: Attacked of defender not found!");
+      return;
+    }
+
+    if (mainCrisisWon) {
+      if (attacker.towerLevel > 0) {
+        attacker.towerLevel = attacker.towerLevel - 1;
+      }
+    } else {
+      attacker.status = RegionStatus.EmpireCapital;
+      defender.status = RegionStatus.Dominated;
+      defender.controllingPresidency = undefined;
+      defender.dominator = attacker.id;
+      defender.towerLevel = 1;
+      defender.unrest = 0;
+    }
+
+    const rebellionRegions: Region[] = [];
+
+    for (const rebellion of rebellionOutcomes) {
+      const region = regions.find((r) => r.id === rebellion.Region.id);
+
+      if (!region) {
+        console.error("Region not found in regions array");
+        return;
+      }
+      if (!rebellion.RebellionSuppressed) {
+        region.status = RegionStatus.Sovereign;
+        region.controllingPresidency = undefined;
+        region.towerLevel = 1;
+      } else {
+        region.unrest = 0;
+      }
+      rebellionRegions.push(region);
+    }
+
+    const newRegionArray = regions.filter(
+      (r) =>
+        !rebellionRegions.includes(r) &&
+        r.id !== attacker.id &&
+        r.id !== defender.id
+    );
+
+    setRegions([...newRegionArray, ...rebellionRegions, attacker, defender]);
+
+    props.handleDialogConfirm(!mainCrisisWon);
+  };
+
   const [activeRebellionRegion, setActiveRebellionRegion] =
     useState<Region>(defender);
-  const [rebellionOutcomes, setRebellionOutcomes] = useState<Rebellion[]>([]);
-  const [rebellionIndex, setRebellionIndex] = useState<number>(0);
 
   const handleRebellionResolution = (rebellionSuppressed: boolean) => {
     setRebellionOutcomes([
@@ -863,7 +868,7 @@ const IndiaInvadesCompany = (props: {
     const newRebellionIndex = rebellionIndex + 1;
 
     if (newRebellionIndex === regionsWithUnrest.length) {
-      props.onOk(mainCrisisWon, rebellionOutcomes);
+      executeIndiaInvadesCompany();
     } else {
       setActiveRebellionRegion(regionsWithUnrest[newRebellionIndex]);
       setRebellionIndex(newRebellionIndex);
@@ -893,7 +898,7 @@ const IndiaInvadesCompany = (props: {
     setMainCrisisResolved(true);
 
     if (regionsWithUnrest.length === 0) {
-      props.onOk(mainCrisisWon, []);
+      executeIndiaInvadesCompany();
     } else {
       setActiveRebellionRegion(regionsWithUnrest[0]);
     }
@@ -905,7 +910,7 @@ const IndiaInvadesCompany = (props: {
         (showMainCrisisResults ? (
           <>
             <Typography>
-              {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+              {elephant.MainRegion} invades {elephant.TargetRegion}
             </Typography>
             <InvasionToCompanyControlledResults
               invasionPrevented={mainCrisisWon}
@@ -916,7 +921,7 @@ const IndiaInvadesCompany = (props: {
         ) : (
           <>
             <Typography>
-              {props.elephant.MainRegion} invades {props.elephant.TargetRegion}
+              {elephant.MainRegion} invades {elephant.TargetRegion}
             </Typography>
             <DialogContent>
               <Typography>
@@ -982,15 +987,13 @@ const InvasionToCompanyControlledResults = (props: {
 };
 
 const CompanyControlledRebels = (props: {
-  regions: Region[];
-  elephant: Elephant;
-  event: EventCard;
-  handleConfirmResults: (rebellionResults: Rebellion[]) => void;
+  handleDialogConfirm: (imperialAmbition: boolean) => void;
 }) => {
-  const rebellingRegion = props.regions.find(
-    (r) => r.id === props.elephant.MainRegion
-  );
-  const regionsWithUnrest = props.regions.filter(
+  const globalEffectsContext = useContext(GlobalEffectsContext);
+  const { regions, elephant, setRegions, activeEvent } = globalEffectsContext;
+
+  const rebellingRegion = regions.find((r) => r.id === elephant.MainRegion);
+  const regionsWithUnrest = regions.filter(
     (r) =>
       r.status === RegionStatus.CompanyControlled &&
       r.unrest > 0 &&
@@ -1003,8 +1006,6 @@ const CompanyControlledRebels = (props: {
     );
     return;
   }
-
-  const globalEffectsContext = useContext(GlobalEffectsContext);
 
   const [activeRebellionRegion, setActiveRebellionRegion] =
     useState<Region>(rebellingRegion);
@@ -1031,7 +1032,7 @@ const CompanyControlledRebels = (props: {
     console.log("regionsWithUnrest.length", regionsWithUnrest.length);
     if (rebellionIndex + 1 > regionsWithUnrest.length) {
       console.log("what");
-      props.handleConfirmResults(rebellionOutcomes);
+      executeCompanyControlledRebels();
     } else {
       setActiveRebellionRegion(regionsWithUnrest[rebellionIndex]);
       setRebellionIndex(rebellionIndex + 1);
@@ -1044,9 +1045,36 @@ const CompanyControlledRebels = (props: {
       : activeRebellionRegion.unrest;
 
     return rebellionIndex === 0
-      ? unrestStrength + props.event.strength
+      ? unrestStrength + (activeEvent?.strength ?? 0)
       : unrestStrength;
   };
+
+  const executeCompanyControlledRebels = () => {
+    const rebellionRegions: Region[] = [];
+
+    for (const rebellion of rebellionOutcomes) {
+      const region = regions.find((r) => r.id === rebellion.Region.id);
+
+      if (!region) {
+        console.error("Region not found in regions array");
+        return;
+      }
+      if (!rebellion.RebellionSuppressed) {
+        region.status = RegionStatus.Sovereign;
+        region.controllingPresidency = undefined;
+        region.towerLevel = 1;
+      } else {
+        region.unrest = 0;
+      }
+      rebellionRegions.push(region);
+    }
+
+    const newRegionArray = regions.filter((r) => !rebellionRegions.includes(r));
+
+    setRegions([...newRegionArray, ...rebellionRegions]);
+    props.handleDialogConfirm(false);
+  };
+
   return (
     <>
       <Typography>Rebellion in {activeRebellionRegion.id}</Typography>

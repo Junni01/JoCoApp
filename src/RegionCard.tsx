@@ -50,8 +50,11 @@ export const RegionCard = (props: RegionCardProps) => {
 
   return (
     <>
-      <Card key={props.region.id} sx={{ m: 2 }}>
-        <CardContent sx={{ width: "320px", height: "150px" }}>
+      <Card
+        key={props.region.id}
+        sx={{ m: 2, width: "350px", height: "250px" }}
+      >
+        <CardContent>
           <Box display="flex" justifyContent="space-between">
             <Typography variant="h6">{props.region.id}</Typography>
             <IconButton
@@ -107,7 +110,7 @@ export const RegionCard = (props: RegionCardProps) => {
             </Typography>
           )}
         </CardContent>
-        <CardActions>
+        <CardActions sx={{ marginTop: "auto" }}>
           <Button
             color="success"
             variant="contained"

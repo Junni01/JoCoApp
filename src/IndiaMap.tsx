@@ -4,9 +4,9 @@ import {
   Card,
   CardContent,
   Container,
+  Grid,
   Typography,
 } from "@mui/material";
-import Grid from "@mui/material/Unstable_Grid2";
 import {
   CrisisType,
   DeployType,
@@ -113,153 +113,6 @@ export const IndiaMap = () => {
     discardEvent();
   };
 
-  const executeSovereignInvadesCompany = (
-    majorCrisisWon: boolean,
-    additionalRebellions: Rebellion[]
-  ) => {
-    const attacker = regions.find((r) => r.id === elephant.MainRegion);
-    const defender = regions.find((r) => r.id === elephant.TargetRegion);
-
-    if (!attacker || !defender) {
-      console.error("EventDialog: Attacked of defender not found!");
-      return;
-    }
-
-    if (majorCrisisWon) {
-      if (attacker.towerLevel > 0) {
-        attacker.towerLevel = attacker.towerLevel - 1;
-      }
-    } else {
-      attacker.status = RegionStatus.EmpireCapital;
-      defender.status = RegionStatus.Dominated;
-      defender.controllingPresidency = undefined;
-      defender.dominator = attacker.id;
-      defender.towerLevel = 1;
-      defender.unrest = 0;
-    }
-
-    const rebellionRegions: Region[] = [];
-
-    for (const rebellion of additionalRebellions) {
-      const region = regions.find((r) => r.id === rebellion.Region.id);
-
-      if (!region) {
-        console.error("Region not found in regions array");
-        return;
-      }
-      if (!rebellion.RebellionSuppressed) {
-        region.status = RegionStatus.Sovereign;
-        region.controllingPresidency = undefined;
-        region.towerLevel = 1;
-      } else {
-        region.unrest = 0;
-      }
-      rebellionRegions.push(region);
-    }
-
-    const newRegionArray = regions.filter(
-      (r) =>
-        !rebellionRegions.includes(r) &&
-        r.id !== attacker.id &&
-        r.id !== defender.id
-    );
-
-    setRegions([...newRegionArray, ...rebellionRegions, attacker, defender]);
-
-    if (majorCrisisWon) {
-      executeElephantsMarch(false);
-    } else {
-      executeElephantsMarch(true);
-    }
-  };
-
-  const executeEmpireInvadesCompany = (
-    majorCrisisWon: boolean,
-    additionalRebellions: Rebellion[]
-  ) => {
-    const attacker = regions.find((r) => r.id === elephant.MainRegion);
-    const defender = regions.find((r) => r.id === elephant.TargetRegion);
-
-    if (!attacker || !defender) {
-      console.error("EventDialog: Attacked of defender not found!");
-      return;
-    }
-
-    if (majorCrisisWon) {
-      if (attacker.towerLevel > 0) {
-        attacker.towerLevel = attacker.towerLevel - 1;
-      }
-    } else {
-      defender.status = RegionStatus.Dominated;
-      defender.dominator = attacker.id;
-      defender.controllingPresidency = undefined;
-      defender.towerLevel = 1;
-      defender.unrest = 0;
-    }
-
-    const rebellionRegions: Region[] = [];
-
-    for (const rebellion of additionalRebellions) {
-      const region = regions.find((r) => r.id === rebellion.Region.id);
-
-      if (!region) {
-        console.error("Region not found in regions array");
-        return;
-      }
-      if (!rebellion.RebellionSuppressed) {
-        region.status = RegionStatus.Sovereign;
-        region.controllingPresidency = undefined;
-        region.towerLevel = 1;
-      } else {
-        region.unrest = 0;
-      }
-      rebellionRegions.push(region);
-    }
-
-    const newRegionArray = regions.filter(
-      (r) =>
-        !rebellionRegions.includes(r) &&
-        r.id !== attacker.id &&
-        r.id !== defender.id
-    );
-
-    setRegions([...newRegionArray, ...rebellionRegions, attacker, defender]);
-
-    if (majorCrisisWon) {
-      executeElephantsMarch(false);
-    } else {
-      executeElephantsMarch(true);
-    }
-  };
-
-  const executeCompanyControlledRebels = (
-    additionalRebellions: Rebellion[]
-  ) => {
-    const rebellionRegions: Region[] = [];
-
-    for (const rebellion of additionalRebellions) {
-      const region = regions.find((r) => r.id === rebellion.Region.id);
-
-      if (!region) {
-        console.error("Region not found in regions array");
-        return;
-      }
-      if (!rebellion.RebellionSuppressed) {
-        region.status = RegionStatus.Sovereign;
-        region.controllingPresidency = undefined;
-        region.towerLevel = 1;
-      } else {
-        region.unrest = 0;
-      }
-      rebellionRegions.push(region);
-    }
-
-    const newRegionArray = regions.filter((r) => !rebellionRegions.includes(r));
-
-    setRegions([...newRegionArray, ...rebellionRegions]);
-    executeElephantsMarch(false);
-  };
-
   const renderEventDialog = () => {
     if (!activeEvent) {
       return;
@@ -277,14 +130,7 @@ export const IndiaMap = () => {
       case EventType.Peace:
         return <PeaceEvent />;
       case EventType.ResolveCrisis:
-        return (
-          <CrisisEvent
-            regions={regions}
-            elephant={elephant}
-            event={activeEvent}
-            onOk={executeCrisisEvent}
-          />
-        );
+        return <CrisisEvent />;
       case EventType.ForeignInvasion:
         return <ForeignInvasionEvent />;
 
@@ -318,52 +164,57 @@ export const IndiaMap = () => {
 
   return (
     <Container sx={{ bgcolor: "beige" }}>
-      <Box display={"flex"} sx={{ m: 1 }}>
-        <Box>
+      <Grid container>
+        <Grid item xs={4}>
           <RegionCard
             region={punjab}
             handleDeployButtonClick={() => setDeployRegion(punjab)}
           />
-
+        </Grid>
+        <Grid item xs={4}>
           <RegionCard
             region={delhi}
             handleDeployButtonClick={() => setDeployRegion(delhi)}
           />
-
+        </Grid>
+        <Grid item xs={4}>
           <RegionCard
             region={bengal}
             handleDeployButtonClick={() => setDeployRegion(bengal)}
           />
-        </Box>
-        <Box>
+        </Grid>
+
+        <Grid item xs={4}>
           <RegionCard
             region={bombay}
             handleDeployButtonClick={() => setDeployRegion(bombay)}
           />
-
+        </Grid>
+        <Grid item xs={8}>
           <RegionCard
             region={hyderabad}
             handleDeployButtonClick={() => setDeployRegion(hyderabad)}
           />
-        </Box>
-
-        <Box>
+        </Grid>
+        <Grid item xs={12}>
           <RegionCard
             region={maratha}
             handleDeployButtonClick={() => setDeployRegion(maratha)}
           />
-
+        </Grid>
+        <Grid item xs={6}>
           <RegionCard
             region={mysore}
             handleDeployButtonClick={() => setDeployRegion(mysore)}
           />
-
+        </Grid>
+        <Grid item xs={6}>
           <RegionCard
             region={madras}
             handleDeployButtonClick={() => setDeployRegion(madras)}
           />
-        </Box>
-      </Box>
+        </Grid>
+      </Grid>
       <>
         <EventStack />
 
